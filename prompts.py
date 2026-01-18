@@ -1,215 +1,361 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
-from pydantic import BaseModel
-from typing import List
 
-def create_goal_decomposition_prompt(problem_statement: str, target_domain: str) -> str:
+# =============================================================================
+# PROMPT 1: Initial Goal Decomposition
+# =============================================================================
+
+def create_initial_decomposition_prompt(problem_statement: str, target_domain: str) -> str:
     """
-    Creates a detailed prompt for decomposing a research goal into fundamental sub-questions.
+    Creates a prompt for decomposing a research problem into fundamental questions
+    with target-domain search queries.
     
     Args:
-        research_goal: The high-level research goal to decompose
+        problem_statement: The research problem to decompose
+        target_domain: The primary domain (e.g., "Computer Science")
         
     Returns:
-        A formatted prompt string for LLM input
+        Formatted prompt string for LLM
     """
     
-    prompt = f"""You are an expert research strategist specializing in interdisciplinary problem decomposition. Your task is to break down complex research goals into fundamental sub-questions that can be addressed through cross-domain literature search and synthesis.
+    prompt = f"""You are an expert research strategist. Your task is to decompose a research problem into fundamental questions and identify target-domain search queries.
 
-# RESEARCH GOAL/PROBLEM STATEMENT
+# RESEARCH PROBLEM
 {problem_statement}
 
-# RESEARCH DOMAIN
-The problem statement primarily falls within the domain of {target_domain}.
+# TARGET DOMAIN
+{target_domain}
 
 # YOUR TASK
-Decompose this research goal of addressing this problem statement into a set of fundamental sub-questions that represent the core conceptual bottlenecks preventing progress on this goal. These sub-questions should guide an interdisciplinary literature search across domains beyond the primary field.
+Break down this problem into 3-5 fundamental research questions that represent core conceptual bottlenecks. For each question, provide 3-5 concise search queries (max 5 words each) to find relevant work in the target domain.
 
 # DECOMPOSITION PRINCIPLES
 
-## 1. Conceptual Atomicity
-Each sub-question must be:
-- **Irreducible**: Cannot be meaningfully answered without addressing a distinct underlying phenomenon or mechanism
-- **Focused**: Addresses ONE specific conceptual challenge, not multiple bundled issues
-- **Self-contained**: Can be understood and investigated independently, though it contributes to the larger goal
+Each research question must be:
+- **Atomic**: Addresses one distinct conceptual challenge
+- **Critical**: Necessary for making progress on the problem
+- **Cross-disciplinary**: Formulated to allow mapping to other fields (avoid domain-specific jargon)
+- **Mechanistic**: Focuses on "how" or "why", not just "what"
 
-## 2. Bottleneck Identification
-Each sub-question must represent a genuine bottleneck by being:
-- **Critical**: Addressing it is necessary (not just helpful) for making progress on the overall goal
-- **Currently unresolved**: Either no satisfactory answer exists in the primary domain, or existing answers are incomplete/inadequate
-- **Enabling**: Answering it would unlock or enable progress on the broader research goal
+# SEARCH QUERY REQUIREMENTS
 
-## 3. Cross-Domain Potential
-Each sub-question should:
-- **Transcend domain boundaries**: Be formulated in a way that could have been addressed (explicitly or implicitly) in other disciplines
-- **Avoid domain-specific jargon**: Use conceptual language that allows mapping to analogous problems in other fields
-- **Focus on mechanisms/principles**: Ask about "how" or "why" something works, not just "what" the current approach is
-
-# REASONING PROCESS
-
-Before generating sub-questions, explicitly work through:
-
-1. **Core Challenge Identification**: What is the fundamental problem or gap this research goal aims to address?
-
-2. **Assumption Surfacing**: What assumptions does the current approach make? Which assumptions might be limiting progress?
-
-3. **Mechanistic Requirements**: What underlying mechanisms, processes, or principles need to be understood to achieve this goal?
-
-4. **Historical Parallels**: Are there analogous challenges that other fields have faced? What made those challenges difficult?
-
-5. **Capability Gaps**: What capabilities, representations, or methods are needed but currently missing or inadequate?
-
-# SEMANTIC SCHOLAR DOMAIN SPECIFICATION
-
-For literature search, you must specify domains from the following list. These are the ONLY valid domains:
-- Computer Science
-- Medicine
-- Chemistry
-- Biology
-- Materials Science
-- Physics
-- Geology
-- Psychology
-- Art
-- History
-- Geography
-- Sociology
-- Business
-- Political Science
-- Economics
-- Philosophy
-- Mathematics
-- Engineering
-- Environmental Science
-- Agricultural and Food Sciences
-- Education
-- Law
-- Linguistics
-
-For each sub-question, you will provide:
-1. **same_domain_keywords**: Keywords/concepts for searching within the target domain (if relevant work exists there)
-2. **search_queries**: Structured search queries for Semantic Scholar API, organized by domain
-
-Each search query must be:
+Each query must be:
 - **Concise**: Maximum 5 words
-- **Specific**: Focused on the core concept, not generic terms
-- **Searchable**: Uses terminology likely to appear in paper titles/abstracts
+- **Specific**: Uses precise terminology likely in paper titles/abstracts
+- **Diverse**: Cover different aspects or approaches to the question
 
 # OUTPUT FORMAT
 
-Provide your response as a JSON object with the following structure:
+Return a JSON object:
 
 {{
-    "research_goal": "The original research goal",
-    "fine_grained_domain": "The specific sub-domain/sub-field of this research goal within the broader target domain",
-    "core_challenge_summary": "A 2-3 sentence summary of the fundamental challenge",
-    "decomposition_reasoning": "Your step-by-step reasoning process for how you identified the sub-questions",
-    "sub_questions": [
+    "problem_statement": "{problem_statement}",
+    "target_domain": "{target_domain}",
+    "fine_grained_domain": "Specific subfield within {target_domain}",
+    "core_challenge": "2-3 sentence summary of the fundamental challenge",
+    "research_questions": [
         {{
             "id": "q1",
-            "question": "The sub-question in clear, conceptual terms",
-            "rationale": "Why this is a critical bottleneck and conceptually atomic",
-            "cross_domain_search_queries": [
-                {{
-                    "domain": "A valid Semantic Scholar domain that could have relevant work",
-                    "queries": [
-                        "first 3-4 word long search query",
-                        "second search query"
-                    ]
-                }},
-                {{
-                    "domain": "example cross-domain: Biology",
-                    "queries": [
-                        "example query: dopamine prediction error timing"
-                    ]
-                }}
-            ],
-            "same_domain_search_queries": [
-                "reinforcement learning credit assignment",
-                "temporal difference learning",
-                "policy gradient methods"
-            ],
-            "current_gaps": "What is missing or inadequate in current approaches to this sub-question?"
-        }},
-        ...
+            "question": "Clear, conceptual question avoiding domain jargon",
+            "rationale": "Why this is a critical bottleneck",
+            "target_domain_queries": [
+                "query one max five words",
+                "query two concise specific",
+                "query three focused searchable"
+            ]
+        }}
     ]
 }}
 
-# QUALITY CRITERIA
+# EXAMPLE
 
-Your decomposition should result in:
-- **3-7 sub-questions** (fewer if the goal is narrow, more if genuinely complex)
-- Sub-questions that are **conceptually distinct** from each other
-- Sub-questions that **collectively cover** the critical bottlenecks for the research goal
-- Sub-questions formulated to **facilitate discovery** of relevant work in other domains
-- **2-4 search queries per domain** for each sub-question (not too many, not too few)
-- **2-5 domains per sub-question** (focus on the most relevant ones)
+For problem: "Develop AI agents that learn from sparse, delayed rewards"
+Good question: "How can a system attribute delayed outcomes to earlier actions?"
+Good queries: ["temporal credit assignment", "delayed reward learning", "eligibility trace methods"]
 
-# EXAMPLES OF GOOD VS. BAD SUB-QUESTIONS AND SEARCH QUERIES
+Bad question: "How do we optimize TD-lambda hyperparameters?" (too specific, solution-focused)
+Bad queries: ["machine learning", "how to do reinforcement learning with delays"] (too generic/long)
 
-**Poor sub-question (too broad):**
-"How can we improve neural network performance?"
-→ Not atomic, not a specific bottleneck, too vague
-
-**Good sub-question:**
-"How can a system identify which earlier decisions contributed to a delayed outcome?"
-→ Atomic, clear bottleneck (credit assignment), cross-domain potential (animal learning, economics)
-
-**Poor search queries:**
-- "machine learning" (too generic, >5 words unlikely to be useful)
-- "how to assign credit to actions over time in reinforcement learning" (too long, >5 words)
-
-**Good search queries:**
-- "temporal credit assignment" (concise, specific, 3 words)
-- "delayed reward attribution" (concise, specific, 3 words)
-- "dopamine prediction error timing" (specific to neuroscience context, 4 words)
-
-**Poor sub-question (domain-specific):**
-"How can we optimize the hyperparameters of transformer architectures?"
-→ Too tied to specific technical approach, limited cross-domain potential
-
-**Good sub-question:**
-"How can a system effectively allocate limited computational resources when different tasks have varying information value?"
-→ General principle, applicable across domains (economics, biology, cognitive science)
-
-# SEARCH QUERY GUIDELINES
-
-For each sub-question, create queries that:
-1. **Use domain-appropriate terminology**: "foraging theory" for Biology/Ecology, "intertemporal choice" for Economics
-2. **Are maximally informative**: Balance generality (to find relevant work) with specificity (to avoid noise)
-3. **Cover different aspects**: If a sub-question has multiple facets, create queries for each
-4. **Include same-domain keywords**: If the target domain has relevant work, provide 2-3 keywords for searching within it
-
-# IMPORTANT GUIDELINES
-
-- **Avoid solution-space questions**: Don't ask "Should we use method X or Y?" Instead ask about the underlying challenge.
-- **Focus on principles, not implementations**: Ask about mechanisms and phenomena, not specific algorithms or techniques.
-- **Think beyond the obvious**: The most valuable sub-questions often reveal non-obvious bottlenecks that cross-domain insights can address.
-- **Be specific enough to search**: Each sub-question should be concrete enough that relevant literature could be identified.
-- **Map to Semantic Scholar domains**: Only use domains from the provided list. If unsure, pick the closest match.
-- **Prioritize domains**: List domains in order of likely relevance, with the most promising first.
-
-Now, please decompose the research goal into fundamental sub-questions following these principles.
+Now decompose the research problem following these principles.
 """
     
     return prompt
 
-class CrossDomainQuery(BaseModel):
-    domain: str
-    queries: List[str]
 
-class SubQuestion(BaseModel):
+class ResearchQuestion(BaseModel):
     id: str
     question: str
     rationale: str
-    cross_domain_search_queries: List[CrossDomainQuery]
-    same_domain_search_queries: List[str]
-    current_gaps: str
+    target_domain_queries: List[str] = Field(min_items=3, max_items=5)
 
-class Decomposition(BaseModel):
-    research_goal: str
+
+class InitialDecomposition(BaseModel):
+    problem_statement: str
+    target_domain: str
     fine_grained_domain: str
-    core_challenge_summary: str
-    decomposition_reasoning: str
-    sub_questions: List[SubQuestion]
+    core_challenge: str
+    research_questions: List[ResearchQuestion]
 
-decompositon_schema = Decomposition.model_json_schema()
+
+# =============================================================================
+# PROMPT 2: Target Domain Analysis
+# =============================================================================
+
+def create_target_domain_analysis_prompt(
+    research_problem: str,
+    question: str,
+    question_rationale: str,
+    papers_with_snippets: dict,
+    target_domain: str
+) -> str:
+    """
+    Creates a prompt for analyzing retrieved papers from the target domain.
+    
+    Args:
+        question: The research question being analyzed
+        question_rationale: Why this question is important
+        papers_with_snippets: Dict mapping paper titles to lists of snippets
+        target_domain: The domain papers were retrieved from
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    # Format papers for the prompt
+    papers_formatted = []
+    for i, (title, snippets) in enumerate(papers_with_snippets.items(), 1):
+        papers_formatted.append(f"\n## Paper {i}: {title}")
+        for j, snippet in enumerate(snippets, 1):
+            papers_formatted.append(f"   Snippet {j}: {snippet}")
+    
+    papers_text = "\n".join(papers_formatted)
+    
+    prompt = f"""You are an expert research analyst. Analyze retrieved papers from the target domain to assess progress on a research question that should ultimately target the research problem.
+
+# RESEARCH PROBLEM
+{research_problem}
+
+# RESEARCH QUESTION
+{question}
+
+**Rationale**: {question_rationale}
+
+# TARGET DOMAIN
+{target_domain}
+
+# RETRIEVED PAPERS AND SNIPPETS
+{papers_text}
+
+# YOUR TASK
+
+1. **Assess Relevance**: For each paper, determine if it genuinely addresses the research question (not just tangentially related)
+
+2. **Identify Addressed Sub-questions**: Across all relevant papers, what specific sub-questions or aspects of the main question have been adequately addressed? If no papers are relevant, output an empty list.
+
+3. **Identify Remaining Challenges**: What meaningful challenges remain unaddressed? These should be:
+   - **Non-iterative**: Not just "do X better" but fundamentally different problems
+   - **Major**: Represent significant conceptual or practical bottlenecks
+   - **Atomic**: Each challenge is a distinct issue
+   - **Formulated as a question**: If the original research question was not addressed at all, just repeat it here. Otherwise, word the remaining challenges as clear questions.
+   If no challenges remain, output an empty list.
+
+4. **Overall Assessment**: Based on the above, is the original research question "substantially addressed", "partially addressed", or "largely unaddressed" in this domain?
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "question": "{question}",
+    "paper_relevance": [
+        {{
+            "paper_title": "Exact title from above",
+            "is_relevant": true,
+            "relevance_explanation": "Brief explanation of why relevant/irrelevant"
+        }}
+    ],
+    "addressed_aspects": [
+        {{
+            "sub_question": "What specific aspect was addressed?",
+            "evidence": "Which papers address this and how?"
+        }}
+    ],
+    "remaining_challenges": [
+        {{
+            "challenge_id": "c1",
+            "challenge_question": "Clear question about what remains unsolved",
+            "why_unaddressed": "Why current work doesn't solve this",
+            "importance": "Why solving this matters for the main question"
+        }}
+    ],
+    "overall_assessment": "Is the original question \"substantially addressed\", \"partially addressed\", or \"largely unaddressed\"?"
+}}
+
+# GUIDELINES
+
+- Be critical but fair in assessing relevance
+- "Addressed" means substantial progress exists, not perfection
+- Focus on conceptual gaps, not just performance improvements
+- If all aspects are addressed, remaining_challenges can be empty
+- Base judgments only on provided evidence
+
+Now analyze the papers for this research question.
+"""
+    
+    return prompt
+
+
+class PaperRelevance(BaseModel):
+    paper_title: str
+    is_relevant: bool
+    relevance_explanation: str
+
+
+class AddressedAspect(BaseModel):
+    sub_question: str
+    evidence: str
+
+
+class RemainingChallenge(BaseModel):
+    challenge_id: str
+    challenge_question: str
+    why_unaddressed: str
+    importance: str
+
+
+class TargetDomainAnalysis(BaseModel):
+    question: str
+    paper_relevance: List[PaperRelevance]
+    addressed_aspects: List[AddressedAspect]
+    remaining_challenges: List[RemainingChallenge]
+    overall_assessment: str
+
+
+# =============================================================================
+# PROMPT 3: Cross-Domain Query Generation
+# =============================================================================
+
+def create_cross_domain_query_prompt(
+    problem_statement: str,
+    question: str,
+    question_rationale: str,
+    target_domain: str,
+    target_domain_assessment: Optional[str] = None
+) -> str:
+    """
+    Creates a prompt for identifying cross-domain search queries.
+    
+    Args:
+        question: The research question or challenge
+        question_rationale: Why this question matters
+        target_domain: The original research domain
+        target_domain_assessment: Summary of what was/wasn't addressed in target domain
+        is_new_challenge: Whether this is a newly identified challenge
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    context_section = ""
+    if target_domain_assessment:
+        context_section = f"""
+# WHY CURRENT {target_domain.upper()} RESEARCH IS INSUFFICIENT:
+{target_domain_assessment}
+"""
+    
+    prompt = f"""You are an expert at identifying cross-disciplinary research connections. Your task is to identify external domains and search queries that could address a research question under the given research problem.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# RESEARCH QUESTION
+{question}
+
+**Rationale**: {question_rationale}
+
+# ORIGINAL DOMAIN
+{target_domain}
+{context_section}
+
+# VALID SEMANTIC SCHOLAR DOMAINS
+Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geology, Psychology, Art, History, Geography, Sociology, Business, Political Science, Economics, Philosophy, Mathematics, Engineering, Environmental Science, Agricultural and Food Sciences, Education, Law, Linguistics
+
+# YOUR TASK
+
+Identify 2-5 external domains (from the list above different from the original domain) that may have addressed this question through analogous problems, mechanisms, or principles. For each domain, provide 2-4 specific search queries.
+
+# QUERY DESIGN PRINCIPLES
+
+- **Domain-appropriate terminology**: Use terms natural to that field (e.g., "foraging theory" for Biology, "intertemporal choice" for Economics)
+- **Mechanistic focus**: Target underlying principles, not surface similarities
+- **Concise**: Maximum 5 words per query
+- **Varied**: Cover different angles or approaches within the domain
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "question": "{question}",
+    "cross_domain_searches": [
+        {{
+            "domain": "Valid domain from the list",
+            "domain_rationale": "Why this domain likely has relevant insights",
+            "queries": [
+                "concise query max five",
+                "another specific query",
+                "third targeted query"
+            ]
+        }}
+    ]
+}}
+
+# EXAMPLE
+
+Question: "How can a system attribute delayed outcomes to earlier actions?"
+Good output:
+{{
+    "cross_domain_searches": [
+        {{
+            "domain": "Psychology",
+            "domain_rationale": "Animal learning research extensively studied delayed reinforcement and temporal credit assignment",
+            "queries": ["delayed reinforcement learning", "trace conditioning mechanisms", "temporal contiguity association"]
+        }},
+        {{
+            "domain": "Neuroscience", 
+            "domain_rationale": "Dopamine systems solve credit assignment for rewards occurring after actions",
+            "queries": ["dopamine prediction error", "reward timing neurons", "temporal difference brain"]
+        }}
+    ]
+}}
+
+Bad example:
+- Domain not in list: "Cognitive Science" (not a valid Semantic Scholar domain)
+- Too generic of a query: ["learning", "psychology of rewards"]
+- Too long of a query: ["how do animals learn from delayed rewards"]
+
+Now identify cross-domain searches for this question.
+"""
+    
+    return prompt
+
+
+class CrossDomainSearch(BaseModel):
+    domain: str
+    domain_rationale: str
+    queries: List[str] = Field(min_items=2, max_items=4)
+
+
+class CrossDomainQueries(BaseModel):
+    question: str
+    cross_domain_searches: List[CrossDomainSearch] = Field(min_items=2, max_items=5)
+
+
+# =============================================================================
+# Schema exports for easy access
+# =============================================================================
+
+initial_decomposition_schema = InitialDecomposition.model_json_schema()
+target_domain_analysis_schema = TargetDomainAnalysis.model_json_schema()
+cross_domain_queries_schema = CrossDomainQueries.model_json_schema()

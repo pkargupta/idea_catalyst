@@ -3,7 +3,7 @@ from collections import defaultdict
 import time
 from config import API_KEY
 
-def search_semantic_scholar(query, coarse_domain):
+def search_semantic_scholar(query, coarse_domain, limit=5):
     url = "http://api.semanticscholar.org/graph/v1/snippet/search"
     # Valid Semantic Scholar domains
     valid_domains = {
@@ -15,12 +15,14 @@ def search_semantic_scholar(query, coarse_domain):
     }
     if coarse_domain not in valid_domains:
         query_params = {
-            "query": query
+            "query": query,
+            "limit": limit
         }
     else:
         query_params = {
             "query": query,
-            "fieldsOfStudy": coarse_domain
+            "fieldsOfStudy": coarse_domain,
+            "limit": limit
         }
     headers = {"x-api-key": API_KEY}
     
@@ -32,7 +34,7 @@ def search_semantic_scholar(query, coarse_domain):
         if response.status_code == 200:
             break
         elif response.status_code == 429:
-            retry_after = int(response.headers.get('Retry-After', 10))
+            retry_after = int(response.headers.get('Retry-After', 15))
             print(f"Rate limited. Retrying after {retry_after} seconds...")
             time.sleep(retry_after)
         else:

@@ -3,91 +3,201 @@ from typing import Dict, List, Optional
 
 @dataclass
 class Domain:
-    def __init__(self, domain_name, question2queries=None):
+    """Represents a research domain with associated queries and papers for questions."""
+    
+    def __init__(self, domain_name: str):
         self.domain_name = domain_name
-        self.question2queries: Optional[Dict[Question, List[str]]] = question2queries if question2queries else None
-
-        self.question2papers: Optional[Dict[Question, Dict[str, List[str]]]] = {}  # Question : {paper_title: [snippets: strings]}
-        self.question2abstract_takeaways: Optional[Dict[Question, str]] = {}
-        self.question2sufficiency: Optional[Dict[Question, bool]] = {}  # populated later
-
-    def fetch_question_queries(self, question):
-        return self.question2queries[question]
+        self.question2queries: Dict['Question', List[str]] = {}
+        self.question2papers: Dict['Question', Dict[str, List[str]]] = {}  # Question : {paper_title: [snippets]}
+        self.question2analysis: Dict['Question', 'TargetDomainAnalysis'] = {}  # Only for target domain
     
-    def add_question_queries(self, question, queries):
-        self.question2queries[question] = queries
+    def add_question_queries(self, question: 'Question', queries: List[str]):
+        """Add search queries for a specific question."""
+        if question not in self.question2queries:
+            self.question2queries[question] = []
+        self.question2queries[question].extend(queries)
     
-    def add_abstract_takeaway(self, question, takeaway):
-        self.question2abstract_takeaways[question] = takeaway
-    
-    def mark_sufficiency(self, question, is_sufficient):
-        self.question2sufficiency[question] = is_sufficient
-    
-    def add_question_papers(self, question, papers):
+    def add_question_papers(self, question: 'Question', papers: Dict[str, List[str]]):
+        """Add retrieved papers and snippets for a question."""
         self.question2papers[question] = papers
     
-    def fetch_question_papers(self, question):
-        return self.question2papers[question]
+    def add_question_analysis(self, question: 'Question', analysis):
+        """Add target domain analysis for a question (only applicable to target domain)."""
+        self.question2analysis[question] = analysis
     
-    def format_question_papers(self, question):
+    def fetch_question_queries(self, question: 'Question') -> List[str]:
+        """Retrieve queries for a question."""
+        return self.question2queries.get(question, [])
+    
+    def fetch_question_papers(self, question: 'Question') -> Dict[str, List[str]]:
+        """Retrieve papers for a question."""
+        return self.question2papers.get(question, {})
+    
+    def format_question_papers(self, question: 'Question') -> str:
+        """Format papers and snippets as a readable string."""
         papers = self.fetch_question_papers(question)
+        if not papers:
+            return "No papers retrieved."
+        
         formatted = []
         for paper_title, snippets in papers.items():
             formatted.append(f"\nPaper: {paper_title}")
             for snippet in snippets:
                 formatted.append(f"  - {snippet}")
         return "\n".join(formatted)
-
     
     def __str__(self):
         return f"Domain(domain_name={self.domain_name})"
+    
+    def __repr__(self):
+        return self.__str__()
+
 
 @dataclass
 class Question:
-    def __init__(self, id, question, rationale, current_gaps):
+    """Represents a research question with associated metadata."""
+    
+    def __init__(self, id: str, question: str, rationale: str, parent_question: Optional['Question'] = None):
         self.id = id
         self.question = question
         self.rationale = rationale
-        self.current_gaps = current_gaps
-
-        # Populate later
-        self.external_domains: Optional[Dict[str, Domain]] = None # domain name: Domain obj
+        self.parent_question = parent_question  # For tracking sub-question hierarchy
+        
+        # Analysis results
+        self.target_domain_analysis = None  # TargetDomainAnalysis object
+        self.is_addressed_in_target = False  # Whether substantially/partially addressed
+        
+        # External domains to explore
+        self.external_domains: Dict[str, Domain] = {}  # domain_name: Domain object
+        self.cross_domain_queries = None  # CrossDomainQueries object
+        
+        # Sub-questions generated from target domain analysis
+        self.remaining_challenges: List['Question'] = []  # Sub-questions that need cross-domain search
     
-    def add_external_domain(self, name, domain_obj):
-        self.external_domains[name] = domain_obj
+    def add_external_domain(self, domain: Domain):
+        """Add an external domain for cross-domain search."""
+        self.external_domains[domain.domain_name] = domain
+    
+    def mark_as_addressed(self, addressed: bool):
+        """Mark whether this question was addressed in the target domain."""
+        self.is_addressed_in_target = addressed
+    
+    def add_remaining_challenge(self, challenge: 'Question'):
+        """Add a remaining challenge (sub-question) from target domain analysis."""
+        self.remaining_challenges.append(challenge)
+    
+    def needs_cross_domain_search(self) -> bool:
+        """Determine if this question needs cross-domain exploration."""
+        # Need cross-domain if not addressed in target OR if there are remaining challenges
+        return not self.is_addressed_in_target or len(self.remaining_challenges) > 0
     
     def __str__(self):
-        return f"Question(question={self.question})"
+        return f"Question(id={self.id}, question={self.question[:50]}...)"
+    
+    def __repr__(self):
+        return self.__str__()
+    
+    def __hash__(self):
+        return hash(self.id)
+    
+    def __eq__(self, other):
+        if isinstance(other, Question):
+            return self.id == other.id
+        return False
+
 
 @dataclass
 class ResearchProblem:
-    def __init__(self, decomposition_json: dict):
-        self.problem_statement = decomposition_json["research_goal"]
-        self.core_challenge = decomposition_json["core_challenge_summary"]
-
-        self.target_domain = Domain(domain_name=decomposition_json["domain"])
-        self.domains = {self.target_domain.domain_name: self.target_domain}
-
-        self.sub_questions = []
-        for sub_question_data in decomposition_json["sub_questions"]:
-            id = len(self.sub_questions)
-            question = sub_question_data["question"]
-            rationale = sub_question_data["rationale"]
-            current_gaps = sub_question_data["current_gaps"]
-
-            sub_question = Question(id=id, question=question, rationale=rationale, current_gaps=current_gaps)
-
-            # Same domain
-            same_domain_queries = sub_question_data["same_domain_search_queries"]
-            self.target_domain.add_question_queries(sub_question, same_domain_queries)
-
-            # Cross domains
-            for domain in sub_question_data["cross_domain_search_queries"]:
-                domain_name = domain["domain"]
-                queries = domain["queries"]
-
-                if domain_name not in self.domains:
-                    self.domains[domain_name] = Domain(domain_name=domain_name)
-                self.domains[domain_name].add_question_queries(sub_question, queries)
-
-            self.sub_questions.append(sub_question)
+    """Represents the overall research problem with decomposed questions."""
+    
+    def __init__(self, problem_statement: str, target_domain_name: str, 
+                 fine_grained_domain: str = "", core_challenge: str = ""):
+        self.problem_statement = problem_statement
+        self.target_domain = Domain(domain_name=target_domain_name)
+        self.fine_grained_domain = fine_grained_domain
+        self.core_challenge = core_challenge
+        
+        # All domains involved (target + external)
+        self.domains: Dict[str, Domain] = {target_domain_name: self.target_domain}
+        
+        # Top-level research questions
+        self.research_questions: List[Question] = []
+        
+        # All questions including sub-questions (for easy lookup)
+        self.all_questions: Dict[str, Question] = {}
+    
+    @classmethod
+    def from_initial_decomposition(cls, decomposition_json: dict, target_domain_name: str):
+        """Create ResearchProblem from initial decomposition output."""
+        problem = cls(
+            problem_statement=decomposition_json["problem_statement"],
+            target_domain_name=target_domain_name,
+            fine_grained_domain=decomposition_json.get("fine_grained_domain", ""),
+            core_challenge=decomposition_json.get("core_challenge", "")
+        )
+        
+        # Create questions from decomposition
+        for q_data in decomposition_json["research_questions"]:
+            question = Question(
+                id=q_data["id"],
+                question=q_data["question"],
+                rationale=q_data["rationale"]
+            )
+            
+            # Add target domain queries
+            queries = q_data.get("target_domain_queries", [])
+            if queries:
+                problem.target_domain.add_question_queries(question, queries)
+            
+            problem.add_research_question(question)
+        
+        return problem
+    
+    def add_research_question(self, question: Question):
+        """Add a top-level research question."""
+        self.research_questions.append(question)
+        self.all_questions[question.id] = question
+    
+    def add_remaining_challenge(self, parent_question: Question, challenge_data: dict):
+        """Create and add a remaining challenge as a sub-question."""
+        challenge = Question(
+            id=challenge_data["challenge_id"],
+            question=challenge_data["challenge_question"],
+            rationale=f'{challenge_data.get("importance", "")} {challenge_data.get("why_unaddressed", "")}',
+            parent_question=parent_question
+        )
+        
+        parent_question.add_remaining_challenge(challenge)
+        self.all_questions[challenge.id] = challenge
+        
+        return challenge
+    
+    def get_or_create_domain(self, domain_name: str) -> Domain:
+        """Get existing domain or create new one."""
+        if domain_name not in self.domains:
+            self.domains[domain_name] = Domain(domain_name=domain_name)
+        return self.domains[domain_name]
+    
+    def get_questions_needing_cross_domain(self) -> List[Question]:
+        """Get all questions (including challenges) that need cross-domain search."""
+        questions_needing_search = []
+        
+        # Check all top-level questions
+        for question in self.research_questions:
+            if question.needs_cross_domain_search():
+                if not question.is_addressed_in_target:
+                    # If the question itself needs search (is "substantially unaddressed (don't do the decomposition yet)")
+                    questions_needing_search.append(question)
+                else:
+                    # Add any remaining challenges
+                    questions_needing_search.extend(question.remaining_challenges)
+        
+        return questions_needing_search
+    
+    def __str__(self):
+        return (f"ResearchProblem(problem={self.problem_statement[:50]}..., "
+                f"domain={self.target_domain.domain_name}, "
+                f"questions={len(self.research_questions)})")
+    
+    def __repr__(self):
+        return self.__str__()
