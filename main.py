@@ -107,9 +107,9 @@ def main():
                        help="The user's desired target domain.")
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-8B",
                        help="LLM model name or path.")
-    parser.add_argument("--output_file", type=str, 
-                       default="output/tod_research_analysis.json",
-                       help="Path to output JSON file.")
+    parser.add_argument("--output_dir", type=str, 
+                       default="output",
+                       help="Path to output directory.")
     parser.add_argument("--max_papers_per_query", type=int, default=20,
                        help="Maximum papers to retrieve per question.")
     args = parser.parse_args()
@@ -128,6 +128,10 @@ def main():
     else:
         print(f"File {args.problem_file} does not exist!")
         return
+    
+    # Create output file path
+    output_file_name = os.path.splitext(os.path.basename(args.problem_file))[0] + "_results.json"
+    args.output_file = os.path.join(args.output_dir, output_file_name)
 
     # Initialize vLLM model
     print("Loading model...")
