@@ -1,146 +1,93 @@
 from dataclasses import dataclass, field
-from enum import Enum
-from pydantic import BaseModel, RootModel, Field
-from typing import Any, Dict, List, Optional
-import re
-
-# -----------------------------
-# Core domain model
-# -----------------------------
-
-@dataclass(frozen=True)
-class Span:
-    """Half-open character span [start, end) into the proposal text."""
-    start: int
-    end: int
-
-    def extract(self, text: str) -> str:
-        return text[self.start : self.end]
+from typing import Dict, List, Optional
 
 @dataclass
 class Domain:
-    """A research domain."""
-    theme: str
-    coarse_domain: Optional[str] = None
-    fine_domain: Optional[str] = None
-    rationale: Optional[str] = None
-    queries: List[str] = field(default_factory=list)
-    snippets: Dict[str, List[str]] = field(default_factory=dict)  # paper title -> snippets
-    bridge_idea: Optional[str] = None  # populated later
-    gap: Optional[str] = None  # populated later
+    def __init__(self, domain_name, question2queries=None):
+        self.domain_name = domain_name
+        self.question2queries: Optional[Dict[Question, List[str]]] = question2queries if question2queries else None
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "theme": self.theme,
-            "coarse_domain": self.coarse_domain,
-            "fine_domain": self.fine_domain,
-            "rationale": self.rationale,
-            "queries": list(self.queries),
-            "snippets": dict(self.snippets),
-            "bridge_idea": self.bridge_idea,
-            "gap": self.gap,
-        }
+        self.question2papers: Optional[Dict[Question, Dict[str, List[str]]]] = {}  # Question : {paper_title: [snippets: strings]}
+        self.question2abstract_takeaways: Optional[Dict[Question, str]] = {}
+        self.question2sufficiency: Optional[Dict[Question, bool]] = {}  # populated later
+
+    def fetch_question_queries(self, question):
+        return self.question2queries[question]
+    
+    def add_question_queries(self, question, queries):
+        self.question2queries[question] = queries
+    
+    def add_abstract_takeaway(self, question, takeaway):
+        self.question2abstract_takeaways[question] = takeaway
+    
+    def mark_sufficiency(self, question, is_sufficient):
+        self.question2sufficiency[question] = is_sufficient
+    
+    def add_question_papers(self, question, papers):
+        self.question2papers[question] = papers
+    
+    def fetch_question_papers(self, question):
+        return self.question2papers[question]
+    
+    def format_question_papers(self, question):
+        papers = self.fetch_question_papers(question)
+        formatted = []
+        for paper_title, snippets in papers.items():
+            formatted.append(f"\nPaper: {paper_title}")
+            for snippet in snippets:
+                formatted.append(f"  - {snippet}")
+        return "\n".join(formatted)
+
     
     def __str__(self):
-        return f"Domain(theme={self.theme}, coarse_domain={self.coarse_domain}, fine_domain={self.fine_domain})"
-
+        return f"Domain(domain_name={self.domain_name})"
 
 @dataclass
-class Theme:
-    """A theme extracted from the proposal."""
-    theme: str
-    dimension: Optional[str] = None
-    segments: List[str] = field(default_factory=list)
-    domains: List[Domain] = field(default_factory=list)  # populated later
+class Question:
+    def __init__(self, id, question, rationale, current_gaps):
+        self.id = id
+        self.question = question
+        self.rationale = rationale
+        self.current_gaps = current_gaps
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "theme": self.theme,
-            "dimension": self.dimension,
-            "segments": list(self.segments),
-            "domains": [domain.to_dict() for domain in self.domains],
-        }
+        # Populate later
+        self.external_domains: Optional[Dict[str, Domain]] = None # domain name: Domain obj
+    
+    def add_external_domain(self, name, domain_obj):
+        self.external_domains[name] = domain_obj
     
     def __str__(self):
-        return f"Theme(theme={self.theme}, dimension={self.dimension})"
+        return f"Question(question={self.question})"
 
 @dataclass
-class Proposal:
-    text: str
-    themes: Dict[str, Theme]
+class ResearchProblem:
+    def __init__(self, decomposition_json: dict):
+        self.problem_statement = decomposition_json["research_goal"]
+        self.core_challenge = decomposition_json["core_challenge_summary"]
 
-    def normalize(self) -> str:
-        # Light cleanup; avoid anything lossy.
-        t = self.text.replace("\r\n", "\n").strip()
-        # Collapse excessive whitespace
-        t = re.sub(r"\n{3,}", "\n\n", t)
-        return t
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "proposal": self.text,
-            "themes": {k: v.to_dict() for k, v in self.themes.items()},
-        }
+        self.target_domain = Domain(domain_name=decomposition_json["domain"])
+        self.domains = {self.target_domain.domain_name: self.target_domain}
 
+        self.sub_questions = []
+        for sub_question_data in decomposition_json["sub_questions"]:
+            id = len(self.sub_questions)
+            question = sub_question_data["question"]
+            rationale = sub_question_data["rationale"]
+            current_gaps = sub_question_data["current_gaps"]
 
-@dataclass
-class Paper:
-    paper_id: str
-    title: str
-    authors: List[str] = field(default_factory=list)
-    year: Optional[int] = None
-    venue: Optional[str] = None
-    abstract: Optional[str] = None
-    url: Optional[str] = None
-    citation_count: Optional[int] = None
+            sub_question = Question(id=id, question=question, rationale=rationale, current_gaps=current_gaps)
 
-    # Optionally attach lightweight retrieved context for prompting
-    context_snippets: List[str] = field(default_factory=list)
+            # Same domain
+            same_domain_queries = sub_question_data["same_domain_search_queries"]
+            self.target_domain.add_question_queries(sub_question, same_domain_queries)
 
-class ThemeData(BaseModel):
-    theme: str
-    dimension: Optional[str]
-    segments: List[str]
+            # Cross domains
+            for domain in sub_question_data["cross_domain_search_queries"]:
+                domain_name = domain["domain"]
+                queries = domain["queries"]
 
-class ThemeSchema(BaseModel):
-    themes: List[ThemeData] = Field(..., max_length=5)
+                if domain_name not in self.domains:
+                    self.domains[domain_name] = Domain(domain_name=domain_name)
+                self.domains[domain_name].add_question_queries(sub_question, queries)
 
-theme_json_schema = ThemeSchema.model_json_schema()
-
-class DomainData(BaseModel):
-    coarse_domain: Optional[str]
-    fine_grained_area: Optional[str]
-    rationale: Optional[str]
-    queries: List[str]
-
-class DomainSchema(RootModel[Dict[str, DomainData]]):
-    pass
-
-domain_json_schema = DomainSchema.model_json_schema()
-
-class GapData(BaseModel):
-    gap: str
-    gap_type: Optional[str]
-    evidence: List[str]
-    domain_connection: Optional[str]
-    improvement: Optional[str]
-    expected_benefit: Optional[str]
-
-gaps_json_schema = GapData.model_json_schema()
-
-class BridgeIdeaData(BaseModel):
-    domain_problem: str
-    proposal_contribution: str
-    bridge_concept: str
-    adaptation_needed: str
-    novel_idea: str
-    feasibility: str
-    anticipated_challenges: str
-    potential_impact: str
-
-bridge_idea_json_schema = BridgeIdeaData.model_json_schema()
-
-@dataclass
-class Collaboration:
-    proposal: Proposal
-    collaborators: Dict[Domain, List[str]]  # collaborator domain -> list of messages (convo_history)
+            self.sub_questions.append(sub_question)

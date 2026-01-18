@@ -1,15 +1,27 @@
 import requests
 from collections import defaultdict
 import time
-
-API_KEY = 'q7wcCuMnvEUQCpg6s0IX3PecFhyqcYc89EVwrlzb'
+from config import API_KEY
 
 def search_semantic_scholar(query, coarse_domain):
     url = "http://api.semanticscholar.org/graph/v1/snippet/search"
-    query_params = {
-        "query": query,
-        "fieldsOfStudy": coarse_domain
+    # Valid Semantic Scholar domains
+    valid_domains = {
+        "Computer Science", "Medicine", "Chemistry", "Biology", "Materials Science",
+        "Physics", "Geology", "Psychology", "Art", "History", "Geography",
+        "Sociology", "Business", "Political Science", "Economics", "Philosophy",
+        "Mathematics", "Engineering", "Environmental Science",
+        "Agricultural and Food Sciences", "Education", "Law", "Linguistics"
     }
+    if coarse_domain not in valid_domains:
+        query_params = {
+            "query": query
+        }
+    else:
+        query_params = {
+            "query": query,
+            "fieldsOfStudy": coarse_domain
+        }
     headers = {"x-api-key": API_KEY}
     
     print(f"Searching Semantic Scholar for query: {query} in domain: {coarse_domain}.")
