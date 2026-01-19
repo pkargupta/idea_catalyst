@@ -353,9 +353,303 @@ class CrossDomainQueries(BaseModel):
 
 
 # =============================================================================
+# PROMPT 4: Cross-Domain Relevance and Takeaways
+# =============================================================================
+
+def create_cross_domain_analysis_prompt(
+    problem_statement: str,
+    question: str,
+    question_rationale: str,
+    source_domain: str,
+    papers_with_snippets: dict,
+    target_domain: str
+) -> str:
+    """
+    Creates a prompt for analyzing cross-domain papers and extracting takeaways.
+    
+    Args:
+        problem_statement: The research problem
+        question: The research question being analyzed
+        question_rationale: Why this question matters
+        source_domain: The external domain being analyzed
+        papers_with_snippets: Dict mapping paper titles to lists of snippets
+        target_domain: The original target domain
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    # Format papers for the prompt
+    papers_formatted = []
+    for i, (title, snippets) in enumerate(papers_with_snippets.items(), 1):
+        papers_formatted.append(f"\n## Paper {i}: {title}")
+        for j, snippet in enumerate(snippets, 1):
+            papers_formatted.append(f"   Snippet {j}: {snippet}")
+    
+    papers_text = "\n".join(papers_formatted) if papers_formatted else "No papers retrieved."
+    
+    prompt = f"""You are an expert at extracting cross-disciplinary insights. Analyze papers from an external domain to assess their relevance to a research question and extract high-level takeaways.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# RESEARCH QUESTION
+{question}
+
+**Rationale**: {question_rationale}
+
+# SOURCE DOMAIN
+{source_domain}
+
+# TARGET DOMAIN (for context)
+{target_domain}
+
+# RETRIEVED PAPERS AND SNIPPETS FROM {source_domain.upper()}
+{papers_text}
+
+# YOUR TASK
+
+1. **Assess Domain Relevance**: Is this domain ({source_domain}) relevant to the research question? Consider:
+   - Do the papers actually address analogous problems or mechanisms?
+   - Are there genuine conceptual connections, or only superficial similarities?
+   - Would insights from this domain likely transfer to the target domain?
+
+2. **Assess Domain Adequacy**: If relevant, does this domain provide sufficient insights? Consider:
+   - Do the papers offer substantive solutions, frameworks, or principles?
+   - Is there enough depth to extract actionable takeaways?
+   - Are there clear mechanisms or approaches that could inform the target domain?
+
+3. **Extract High-Level Takeaways**: If the domain is relevant and adequate, identify 2-5 key insights that are:
+   - **Domain-agnostic**: Formulated as general principles, not {source_domain}-specific details
+   - **Mechanistic**: Focused on "how" and "why", not just "what"
+   - **Actionable**: Could potentially inform approaches in {target_domain}
+   - **Evidence-based**: Clearly supported by the provided papers
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "question": "{question}",
+    "source_domain": "{source_domain}",
+    "is_relevant": true,
+    "relevance_explanation": "Brief explanation of why this domain is/isn't relevant to the question",
+    "is_adequate": true,
+    "adequacy_explanation": "If relevant, explain whether papers provide sufficient depth and insights",
+    "high_level_takeaways": [
+        {{
+            "takeaway_id": "t1",
+            "principle": "Clear, domain-agnostic statement of the key insight or mechanism",
+            "explanation": "How this principle works and why it matters",
+            "supporting_evidence": "Which papers demonstrate this and how"
+        }}
+    ]
+}}
+
+# GUIDELINES
+
+- Be honest about relevance - superficial keyword matches don't mean true relevance
+- "Relevant" means the domain addresses analogous problems/mechanisms, not just similar terms
+- "Adequate" means sufficient depth for extracting actionable insights
+- If not relevant, set is_relevant=false and leave high_level_takeaways as empty list
+- If relevant but not adequate (e.g., too shallow), set is_adequate=false
+- Takeaways should be abstracted to their core principles, stripped of domain-specific jargon
+- Focus on mechanisms and approaches that could generalize, not specific implementations
+
+# EXAMPLE
+
+Question: "How can a system attribute delayed outcomes to earlier actions?"
+Source Domain: "Psychology"
+
+Good takeaway:
+{{
+    "takeaway_id": "t1",
+    "principle": "Temporal associations can be strengthened by maintaining eligibility traces that decay over time",
+    "explanation": "Systems can bridge temporal gaps by maintaining decaying memory traces of past events. When an outcome occurs, credit is assigned proportionally to the strength of these traces.",
+    "supporting_evidence": "Papers on trace conditioning show animals learn delayed associations through neural traces that persist after stimuli offset, with learning strength proportional to trace overlap with outcomes."
+}}
+
+Bad takeaway (too domain-specific):
+"Dopamine neurons in the ventral tegmental area fire in response to reward prediction errors"
+→ Should be: "Prediction error signals can drive learning by indicating discrepancies between expected and actual outcomes"
+
+Now analyze the {source_domain} papers for this research question.
+"""
+    
+    return prompt
+
+
+class HighLevelTakeaway(BaseModel):
+    takeaway_id: str
+    principle: str
+    explanation: str
+    supporting_evidence: str
+
+
+class CrossDomainAnalysis(BaseModel):
+    question: str
+    source_domain: str
+    is_relevant: bool
+    relevance_explanation: str
+    is_adequate: bool
+    adequacy_explanation: str
+    high_level_takeaways: List[HighLevelTakeaway]
+
+
+# =============================================================================
+# PROMPT 5: Target Domain Framing
+# =============================================================================
+
+def create_target_domain_framing_prompt(
+    problem_statement: str,
+    question: str,
+    source_domain: str,
+    target_domain: str,
+    high_level_takeaways: List[dict]
+) -> str:
+    """
+    Creates a prompt for framing cross-domain takeaways in target domain context.
+    
+    Args:
+        problem_statement: The research problem
+        question: The research question
+        source_domain: The external domain the takeaways came from
+        target_domain: The target domain to frame takeaways for
+        high_level_takeaways: List of takeaway dicts with principle, explanation, evidence
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    # Format takeaways
+    takeaways_formatted = []
+    for i, takeaway in enumerate(high_level_takeaways, 1):
+        takeaways_formatted.append(f"\n## Takeaway {i} (ID: {takeaway.get('takeaway_id', f't{i}')})")
+        takeaways_formatted.append(f"**Principle**: {takeaway.get('principle', 'N/A')}")
+        takeaways_formatted.append(f"**Explanation**: {takeaway.get('explanation', 'N/A')}")
+        takeaways_formatted.append(f"**Evidence**: {takeaway.get('supporting_evidence', 'N/A')}")
+    
+    takeaways_text = "\n".join(takeaways_formatted) if takeaways_formatted else "No takeaways provided."
+    
+    prompt = f"""You are an expert at translating cross-disciplinary insights into domain-specific applications. Your task is to frame general principles from one domain in the language and context of the target domain.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# RESEARCH QUESTION
+{question}
+
+# SOURCE DOMAIN
+{source_domain}
+
+# TARGET DOMAIN
+{target_domain}
+
+# HIGH-LEVEL TAKEAWAYS FROM {source_domain.upper()}
+{takeaways_text}
+
+# YOUR TASK
+
+For each takeaway, translate it into {target_domain}-specific language and highlight concrete implications. Each framed takeaway should:
+
+1. **Restate the principle** using {target_domain} terminology and concepts
+2. **Identify concrete applications** in {target_domain} that this principle suggests
+3. **Highlight specific challenges** in {target_domain} that this principle could address
+4. **Suggest potential approaches** that could implement this principle in {target_domain}
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "question": "{question}",
+    "source_domain": "{source_domain}",
+    "target_domain": "{target_domain}",
+    "framed_takeaways": [
+        {{
+            "takeaway_id": "t1",
+            "original_principle": "The general principle from source domain",
+            "target_domain_framing": "How this principle translates to {target_domain} language and concepts",
+            "concrete_applications": [
+                "Specific application 1 in {target_domain}",
+                "Specific application 2 in {target_domain}"
+            ],
+            "addresses_challenges": [
+                "Specific {target_domain} challenge this could help with"
+            ],
+            "potential_approaches": [
+                "Concrete approach or method that could implement this principle in {target_domain}"
+            ]
+        }}
+    ],
+    "overall_synthesis": "2-3 sentence summary of how these {source_domain} insights collectively inform the {target_domain} question"
+}}
+
+# GUIDELINES
+
+- Use terminology, concepts, and examples natural to {target_domain}
+- Be specific - avoid generic statements that could apply to any domain
+- Focus on actionable insights that could inform actual {target_domain} work
+- Identify concrete connections to existing {target_domain} concepts or methods
+- If a principle doesn't translate well, explain why and what's missing
+- Prioritize insights that are novel or under-explored in {target_domain}
+
+# EXAMPLE
+
+Source Domain: Psychology
+Target Domain: Computer Science
+Original Principle: "Temporal associations can be strengthened by maintaining eligibility traces that decay over time"
+
+Good framing:
+{{
+    "target_domain_framing": "In reinforcement learning, agents can bridge temporal credit assignment gaps by maintaining exponentially decaying eligibility traces for state-action pairs, allowing delayed rewards to update earlier decisions proportionally to trace strength",
+    "concrete_applications": [
+        "Implementing eligibility traces (e.g., TD(λ)) in RL agents to handle delayed rewards",
+        "Using trace decay parameters to control how far back credit propagates"
+    ],
+    "addresses_challenges": [
+        "The temporal credit assignment problem when rewards are delayed",
+        "Sample efficiency in sparse reward environments"
+    ],
+    "potential_approaches": [
+        "TD(λ) algorithm with tunable trace decay rates",
+        "Neural network architectures with built-in temporal trace mechanisms"
+    ]
+}}
+
+Bad framing (too generic):
+"Systems should remember past events to connect them with future outcomes"
+→ Not specific to {target_domain}, no concrete applications
+
+Now frame the {source_domain} takeaways for {target_domain}.
+"""
+    
+    return prompt
+
+
+class FramedTakeaway(BaseModel):
+    takeaway_id: str
+    original_principle: str
+    target_domain_framing: str
+    concrete_applications: List[str] = Field(min_items=1, max_items=5)
+    addresses_challenges: List[str] = Field(min_items=1, max_items=5)
+    potential_approaches: List[str] = Field(min_items=1, max_items=5)
+
+
+class TargetDomainFraming(BaseModel):
+    question: str
+    source_domain: str
+    target_domain: str
+    framed_takeaways: List[FramedTakeaway]
+    overall_synthesis: str
+
+
+# =============================================================================
 # Schema exports for easy access
 # =============================================================================
 
 initial_decomposition_schema = InitialDecomposition.model_json_schema()
 target_domain_analysis_schema = TargetDomainAnalysis.model_json_schema()
 cross_domain_queries_schema = CrossDomainQueries.model_json_schema()
+cross_domain_analysis_schema = CrossDomainAnalysis.model_json_schema()
+target_domain_framing_schema = TargetDomainFraming.model_json_schema()

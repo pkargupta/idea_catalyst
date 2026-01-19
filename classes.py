@@ -92,13 +92,13 @@ class Question:
         return not self.is_addressed_in_target or len(self.remaining_challenges) > 0
     
     def __str__(self):
-        return f"Question(id={self.id}, question={self.question[:50]}...)"
+        return f"Question(id={self.id}, question={self.question})"
     
     def __repr__(self):
         return self.__str__()
     
     def __hash__(self):
-        return hash(self.id)
+        return hash(self.__str__())
     
     def __eq__(self, other):
         if isinstance(other, Question):

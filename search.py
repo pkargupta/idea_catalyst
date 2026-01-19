@@ -26,7 +26,7 @@ def search_semantic_scholar(query, coarse_domain, limit=5):
         }
     headers = {"x-api-key": API_KEY}
     
-    print(f"Searching Semantic Scholar for query: {query} in domain: {coarse_domain}.")
+    print(f"\t -Searching Semantic Scholar for query: {query} in domain: {coarse_domain}.")
 
     while True:
         response = requests.get(url, params=query_params, headers=headers, allow_redirects=True)
@@ -34,7 +34,7 @@ def search_semantic_scholar(query, coarse_domain, limit=5):
         if response.status_code == 200:
             break
         elif response.status_code == 429:
-            retry_after = int(response.headers.get('Retry-After', 15))
+            retry_after = int(response.headers.get('Retry-After', 5))
             print(f"Rate limited. Retrying after {retry_after} seconds...")
             time.sleep(retry_after)
         else:
@@ -43,7 +43,7 @@ def search_semantic_scholar(query, coarse_domain, limit=5):
     if response.status_code == 200:
         return_response = response.json()['data']
         if len(return_response) == 0:
-            print(f"No results found for query: {query} in domain: {coarse_domain}.")
+            print(f"\t -No results found for query: {query} in domain: {coarse_domain}.")
         return return_response
     else:
         response.raise_for_status()

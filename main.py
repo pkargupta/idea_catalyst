@@ -108,7 +108,7 @@ def main():
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-8B",
                        help="LLM model name or path.")
     parser.add_argument("--output_dir", type=str, 
-                       default="output",
+                       default="output_debug",
                        help="Path to output directory.")
     parser.add_argument("--max_papers_per_query", type=int, default=20,
                        help="Maximum papers to retrieve per question.")
@@ -130,7 +130,7 @@ def main():
         return
     
     # Create output file path
-    output_file_name = os.path.splitext(os.path.basename(args.problem_file))[0] + "_results.json"
+    output_file_name = os.path.splitext(os.path.basename(args.problem_file))[0] + f"_{args.max_papers_per_query}_results.json"
     args.output_file = os.path.join(args.output_dir, output_file_name)
 
     # Initialize vLLM model
@@ -190,7 +190,7 @@ def main():
             max_papers=args.max_papers_per_query
         )
         research_problem.target_domain.add_question_papers(question, papers)
-        print(f"    Retrieved {len(papers)} papers")
+        print(f"    -Retrieved {len(papers)} papers")
     
     # Step 2b: Batch analyze all questions in target domain
     print("\n2b. Analyzing target domain papers (batch inference)...")
@@ -317,24 +317,16 @@ def main():
                 question.add_external_domain(domain)
                 
                 print(f"    - {domain_name}: {len(queries)} queries")
-        
-        # Step 3b: Retrieve papers from external domains
-        print("\n3b. Retrieving papers from external domains...")
-        
-        for question in questions_needing_cross_domain:
-            if not question.external_domains:
-                continue
-            
-            print(f"\n  {question.id}:")
-            for domain_name, domain in question.external_domains.items():
-                print(f"    Retrieving from {domain_name}...")
+
+                print(f"Retrieving from {domain_name}...")
                 papers = retrieve_papers_for_question(
                     question,
                     domain,
                     max_papers=args.max_papers_per_query
                 )
                 domain.add_question_papers(question, papers)
-                print(f"      Retrieved {len(papers)} papers")
+                domain_search["retrieved_papers"] = papers
+                print(f"      -Retrieved {len(papers)} papers")
 
     # =========================================================================
     # Save Results
@@ -348,6 +340,14 @@ def main():
     
     # Prepare output structure
     output = {
+        "problem_statement": research_problem.problem_statement,
+        "target_domain": research_problem.target_domain.domain_name,
+        "fine_grained_domain": research_problem.fine_grained_domain,
+        "core_challenge": research_problem.core_challenge,
+        "research_questions": []
+    }
+
+    condensed_output = {
         "problem_statement": research_problem.problem_statement,
         "target_domain": research_problem.target_domain.domain_name,
         "fine_grained_domain": research_problem.fine_grained_domain,
@@ -370,27 +370,41 @@ def main():
                     "id": c.id,
                     "question": c.question,
                     "rationale": c.rationale,
-                    "cross_domain_queries": c.cross_domain_queries,
-                    "external_domains_searched": list(c.external_domains.keys()),
-                    "external_papers": {domain_name: domain.fetch_question_papers(question) 
-                               for domain_name, domain in question.external_domains.items()} 
-                               if c.external_domains else {}
+                    "cross_domain_queries": c.cross_domain_queries["cross_domain_searches"],
+                    "external_domains_searched": list(c.external_domains.keys())
                 }
                 for c in question.remaining_challenges
             ]
         }
 
+        condensed_q_data = {"question": question.question,
+                            "overall_assessment": question.target_domain_analysis["overall_assessment"],
+                            "remaining_challenges": [
+                                {"question": c.question,
+                                 "rationale": c.rationale,
+                                 "cross_domain_queries": c.cross_domain_queries["cross_domain_searches"]
+                }
+                for c in question.remaining_challenges
+            ]
+        }
+
+
         if not question.is_addressed_in_target:
-            q_data["cross_domain_queries"] = question.cross_domain_queries if not question.is_addressed_in_target else None
+            q_data["cross_domain_queries"] = question.cross_domain_queries["cross_domain_searches"] if not question.is_addressed_in_target else None
             q_data["external_domains_searched"] = list(question.external_domains.keys()) if question.external_domains else []
-            q_data["external_papers"] = {domain_name: domain.fetch_question_papers(question) 
-                                         for domain_name, domain in question.external_domains.items()} if question.external_domains else {}
+            
+            condensed_q_data["cross_domain_queries"] = question.cross_domain_queries["cross_domain_searches"] if not question.is_addressed_in_target else None
 
         output["research_questions"].append(q_data)
+        condensed_output["research_questions"].append(condensed_q_data)
     
     # Save to file
     with open(args.output_file, "w") as f:
         json.dump(output, f, indent=2)
+    
+    condensed_output_file = os.path.splitext(args.output_file)[0] + "_condensed.json"
+    with open(condensed_output_file, "w") as f:
+        json.dump(condensed_output, f, indent=2)
     
     end_time = time.perf_counter()
     elapsed_time = end_time - start_time
