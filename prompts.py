@@ -19,7 +19,7 @@ def create_initial_decomposition_prompt(problem_statement: str, target_domain: s
         Formatted prompt string for LLM
     """
     
-    prompt = f"""You are an expert research strategist. Your task is to decompose a research problem into fundamental questions and identify target-domain search queries.
+    prompt = f"""You are an expert research strategist. Your task is to decompose a research problem into subfield-specific fundamental questions and identify fine-grained-domain search queries.
 
 # RESEARCH PROBLEM
 {problem_statement}
@@ -33,7 +33,8 @@ Break down this problem into 3-5 fundamental research questions that represent c
 # DECOMPOSITION PRINCIPLES
 
 Each research question must be:
-- **Atomic**: Addresses one distinct conceptual challenge
+- **Atomic**: Addresses one distinct conceptual challenge for solving the research problem
+- **More Fine-Grained**: Tackles a more specific question (fine-grained) within the research problem (coarse-grained)
 - **Critical**: Necessary for making progress on the problem
 - **Cross-disciplinary**: Formulated to allow mapping to other fields (avoid domain-specific jargon)
 - **Mechanistic**: Focuses on "how" or "why", not just "what"
@@ -42,8 +43,8 @@ Each research question must be:
 
 Each query must be:
 - **Concise**: Maximum 5 words
-- **Specific**: Uses precise terminology likely in paper titles/abstracts
-- **Diverse**: Cover different aspects or approaches to the question
+- **Specific**: Uses precise terminology likely in paper titles/abstracts and reflects critical term(s) from the research problem + question
+- **Diverse**: Cover different aspects or approaches to the research problem
 
 # OUTPUT FORMAT
 
@@ -153,14 +154,14 @@ def create_target_domain_analysis_prompt(
 
 2. **Identify Addressed Sub-questions**: Across all relevant papers, what specific sub-questions or aspects of the main question have been adequately addressed? If no papers are relevant, output an empty list.
 
-3. **Identify Remaining Challenges**: What meaningful challenges remain unaddressed? These should be:
+3. **Identify Remaining Challenges**: What meaningful challenges for solving the research question ({question}) remain unaddressed? These should be:
    - **Non-iterative**: Not just "do X better" but fundamentally different problems
-   - **Major**: Represent significant conceptual or practical bottlenecks
+   - **Major**: Represent significant conceptual or practical bottlenecks for solving the research question that are not addressed by the papers or the target domain to the best of your knowledge.
    - **Atomic**: Each challenge is a distinct issue
    - **Formulated as a question**: If the original research question was not addressed at all, just repeat it here. Otherwise, word the remaining challenges as clear questions.
    If no challenges remain, output an empty list.
 
-4. **Overall Assessment**: Based on the above, is the original research question "substantially addressed", "partially addressed", or "largely unaddressed" in this domain?
+4. **Overall Assessment**: Based on the above, is the research question "substantially addressed", "partially addressed", or "largely unaddressed" in this domain?
 
 # OUTPUT FORMAT
 
@@ -171,7 +172,7 @@ Return a JSON object:
     "paper_relevance": [
         {{
             "paper_title": "Exact title from above",
-            "is_relevant": true,
+            "is_relevant": bool,
             "relevance_explanation": "Brief explanation of why relevant/irrelevant"
         }}
     ],
@@ -184,12 +185,12 @@ Return a JSON object:
     "remaining_challenges": [
         {{
             "challenge_id": "c1",
-            "challenge_question": "Clear question about what remains unsolved",
+            "challenge_question": "Clear question about what remains unsolved for research question ({question})",
             "why_unaddressed": "Why current work doesn't solve this",
-            "importance": "Why solving this matters for the main question"
+            "importance": "Why solving this matters for the main research problem and research question."
         }}
     ],
-    "overall_assessment": "Is the original question \"substantially addressed\", \"partially addressed\", or \"largely unaddressed\"?"
+    "overall_assessment": "Is the research question \"substantially addressed\", \"partially addressed\", or \"largely unaddressed\"?"
 }}
 
 # GUIDELINES
@@ -283,7 +284,7 @@ Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geol
 
 # YOUR TASK
 
-Identify 2-5 external domains (from the list above different from the original domain) that may have addressed this question through analogous problems, mechanisms, or principles. For each domain, provide 2-4 specific search queries.
+Identify 1-3 external domains (from the list above different from the original domain) that may have addressed this question through analogous problems, mechanisms, or principles. For each domain, provide 2-4 specific search queries.
 
 # QUERY DESIGN PRINCIPLES
 
@@ -349,7 +350,7 @@ class CrossDomainSearch(BaseModel):
 
 class CrossDomainQueries(BaseModel):
     question: str
-    cross_domain_searches: List[CrossDomainSearch] = Field(min_items=2, max_items=5)
+    cross_domain_searches: List[CrossDomainSearch] = Field(min_items=1, max_items=3)
 
 
 # =============================================================================
@@ -410,11 +411,11 @@ def create_cross_domain_analysis_prompt(
 # YOUR TASK
 
 1. **Assess Domain Relevance**: Is this domain ({source_domain}) relevant to the research question? Consider:
-   - Do the papers actually address analogous problems or mechanisms?
+   - Do the papers actually address analogous problems or mechanisms at a deeper level?
    - Are there genuine conceptual connections, or only superficial similarities?
    - Would insights from this domain likely transfer to the target domain?
 
-2. **Assess Domain Adequacy**: If relevant, does this domain provide sufficient insights? Consider:
+2. **Assess Domain Adequacy**: Based on the papers' relevance, do these papers provide sufficient insights? Consider:
    - Do the papers offer substantive solutions, frameworks, or principles?
    - Is there enough depth to extract actionable takeaways?
    - Are there clear mechanisms or approaches that could inform the target domain?
@@ -424,6 +425,7 @@ def create_cross_domain_analysis_prompt(
    - **Mechanistic**: Focused on "how" and "why", not just "what"
    - **Actionable**: Could potentially inform approaches in {target_domain}
    - **Evidence-based**: Clearly supported by the provided papers
+   - **Be Conservative**: Only include takeaways you are confident are well-supported
 
 # OUTPUT FORMAT
 
@@ -432,10 +434,17 @@ Return a JSON object:
 {{
     "question": "{question}",
     "source_domain": "{source_domain}",
-    "is_relevant": true,
+    "paper_relevance": [
+        {{
+            "paper_title": "Exact title from above",
+            "is_relevant": bool,
+            "relevance_explanation": "Brief explanation of why relevant/irrelevant"
+        }}
+    ],
+    "is_relevant": bool,
     "relevance_explanation": "Brief explanation of why this domain is/isn't relevant to the question",
-    "is_adequate": true,
-    "adequacy_explanation": "If relevant, explain whether papers provide sufficient depth and insights",
+    "is_adequate": bool,
+    "adequacy_explanation": "Explain whether papers provide sufficient depth and insights",
     "high_level_takeaways": [
         {{
             "takeaway_id": "t1",
@@ -464,9 +473,9 @@ Source Domain: "Psychology"
 Good takeaway:
 {{
     "takeaway_id": "t1",
-    "principle": "Temporal associations can be strengthened by maintaining eligibility traces that decay over time",
-    "explanation": "Systems can bridge temporal gaps by maintaining decaying memory traces of past events. When an outcome occurs, credit is assigned proportionally to the strength of these traces.",
-    "supporting_evidence": "Papers on trace conditioning show animals learn delayed associations through neural traces that persist after stimuli offset, with learning strength proportional to trace overlap with outcomes."
+    "principle": "Delayed outcomes can be attributed to earlier actions by preserving a fading influence of past events until feedback arrives",
+    "explanation": "When outcomes do not immediately follow actions, systems can still assign credit by retaining a temporary, gradually weakening influence of prior actions or states. When feedback eventually occurs, earlier elements that remain influential receive proportionate credit, enabling learning across time gaps.",
+    "supporting_evidence": "Studies on delayed learning and conditioning show that organisms can learn associations even when outcomes occur later, as long as internal representations of earlier events persist long enough to overlap with feedback."
 }}
 
 Bad takeaway (too domain-specific):
@@ -489,6 +498,7 @@ class HighLevelTakeaway(BaseModel):
 class CrossDomainAnalysis(BaseModel):
     question: str
     source_domain: str
+    paper_relevance: List[PaperRelevance]
     is_relevant: bool
     relevance_explanation: str
     is_adequate: bool

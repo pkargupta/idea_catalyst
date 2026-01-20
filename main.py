@@ -16,11 +16,14 @@ from prompts import (
     create_initial_decomposition_prompt,
     create_target_domain_analysis_prompt,
     create_cross_domain_query_prompt,
+    create_cross_domain_analysis_prompt,
     initial_decomposition_schema,
     target_domain_analysis_schema,
-    cross_domain_queries_schema
+    cross_domain_queries_schema,
+    cross_domain_analysis_schema
 )
 from classes import ResearchProblem, Question, Domain
+from utils import prepare_output
 
 
 def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7) -> List[dict]:
@@ -89,6 +92,7 @@ def retrieve_papers_for_question(question: Question, domain: Domain, max_papers:
                         papers[paper_title] = snippet_list
                     else:
                         papers[paper_title].extend(snippet_list)
+                        papers[paper_title] = list(set(papers[paper_title]))  # Ensure uniqueness
                     
                     if len(papers) >= max_papers:
                         break
@@ -131,7 +135,13 @@ def main():
     
     # Create output file path
     output_file_name = os.path.splitext(os.path.basename(args.problem_file))[0] + f"_{args.max_papers_per_query}_results.json"
+    condensed_output_file_name = os.path.splitext(os.path.basename(args.problem_file))[0] + f"_{args.max_papers_per_query}_condensed.json"
+
     args.output_file = os.path.join(args.output_dir, output_file_name)
+    args.condensed_output_file = os.path.join(args.output_dir, condensed_output_file_name)
+
+    # Create output directory if needed
+    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
     # Initialize vLLM model
     print("Loading model...")
@@ -299,6 +309,8 @@ def main():
         )
         
         # Process cross-domain query results
+        cross_domain_analysis_prompts = []
+        cross_domain_analysis_keys = []
         for question, cross_domain_output in zip(questions_needing_cross_domain, cross_domain_outputs):
             if cross_domain_output is None:
                 print(f"  Failed to generate cross-domain queries for {question.id}")
@@ -324,9 +336,41 @@ def main():
                     domain,
                     max_papers=args.max_papers_per_query
                 )
+                
+                # Conduct cross-domain analysis on domain papers
+                cross_domain_analysis_prompt = create_cross_domain_analysis_prompt(
+                    problem_statement=research_problem.problem_statement,
+                    question=question.question,
+                    question_rationale=question.rationale,
+                    domain_name=domain_name,
+                    papers_with_snippets=papers
+                )
+                cross_domain_analysis_messages = [{"role": "user", "content": cross_domain_analysis_prompt}]
+                cross_domain_analysis_prompts.append(cross_domain_analysis_messages)
+                cross_domain_analysis_keys.append((question, domain))
+                
                 domain.add_question_papers(question, papers)
                 domain_search["retrieved_papers"] = papers
                 print(f"      -Retrieved {len(papers)} papers")
+        
+        # Step 3b: Batch cross-domain analyses
+        print("\n3b. Analyzing cross-domain papers (batch inference)...")
+        if cross_domain_analysis_prompts:
+            cross_domain_analysis_outputs = batch_llm_inference(
+                llm,
+                cross_domain_analysis_prompts,
+                cross_domain_analysis_schema,
+                temperature=0.5
+            )
+            
+            # Process cross-domain analysis results
+            for (question, domain), analysis_output in zip(cross_domain_analysis_keys, cross_domain_analysis_outputs):
+                if analysis_output is None:
+                    print(f"  Failed to analyze cross-domain papers for question '{question.id}' in domain '{domain.domain_name}'")
+                    continue
+                
+                question.add_cross_domain_analysis(domain, analysis_output)
+                print(f"  Analyzed cross-domain papers for question '{question.id}' in domain '{domain.domain_name}'")
 
     # =========================================================================
     # Save Results
@@ -334,76 +378,14 @@ def main():
     print("\n" + "=" * 80)
     print("SAVING RESULTS")
     print("=" * 80)
-    
-    # Create output directory if needed
-    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
-    
-    # Prepare output structure
-    output = {
-        "problem_statement": research_problem.problem_statement,
-        "target_domain": research_problem.target_domain.domain_name,
-        "fine_grained_domain": research_problem.fine_grained_domain,
-        "core_challenge": research_problem.core_challenge,
-        "research_questions": []
-    }
 
-    condensed_output = {
-        "problem_statement": research_problem.problem_statement,
-        "target_domain": research_problem.target_domain.domain_name,
-        "fine_grained_domain": research_problem.fine_grained_domain,
-        "core_challenge": research_problem.core_challenge,
-        "research_questions": []
-    }
-    
-    for question in research_problem.research_questions:
-
-        q_data = {
-            "id": question.id,
-            "question": question.question,
-            "rationale": question.rationale,
-            "target_domain_analysis": {"paper_relevance": question.target_domain_analysis["paper_relevance"],
-                                       "addressed_aspects": question.target_domain_analysis["addressed_aspects"],
-                                       "overall_assessment": question.target_domain_analysis["overall_assessment"]},
-            "is_addressed_in_target": question.is_addressed_in_target,
-            "remaining_challenges": [
-                {
-                    "id": c.id,
-                    "question": c.question,
-                    "rationale": c.rationale,
-                    "cross_domain_queries": c.cross_domain_queries["cross_domain_searches"],
-                    "external_domains_searched": list(c.external_domains.keys())
-                }
-                for c in question.remaining_challenges
-            ]
-        }
-
-        condensed_q_data = {"question": question.question,
-                            "overall_assessment": question.target_domain_analysis["overall_assessment"],
-                            "remaining_challenges": [
-                                {"question": c.question,
-                                 "rationale": c.rationale,
-                                 "cross_domain_queries": c.cross_domain_queries["cross_domain_searches"]
-                }
-                for c in question.remaining_challenges
-            ]
-        }
-
-
-        if not question.is_addressed_in_target:
-            q_data["cross_domain_queries"] = question.cross_domain_queries["cross_domain_searches"] if not question.is_addressed_in_target else None
-            q_data["external_domains_searched"] = list(question.external_domains.keys()) if question.external_domains else []
-            
-            condensed_q_data["cross_domain_queries"] = question.cross_domain_queries["cross_domain_searches"] if not question.is_addressed_in_target else None
-
-        output["research_questions"].append(q_data)
-        condensed_output["research_questions"].append(condensed_q_data)
+    output, condensed_output = prepare_output(research_problem)
     
     # Save to file
     with open(args.output_file, "w") as f:
         json.dump(output, f, indent=2)
     
-    condensed_output_file = os.path.splitext(args.output_file)[0] + "_condensed.json"
-    with open(condensed_output_file, "w") as f:
+    with open(args.condensed_output_file, "w") as f:
         json.dump(condensed_output, f, indent=2)
     
     end_time = time.perf_counter()
