@@ -26,7 +26,7 @@ from classes import ResearchProblem, Question, Domain
 from utils import prepare_output
 
 
-def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7) -> List[dict]:
+def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7, max_tokens: int = 2048) -> List[dict]:
     """
     Perform batch inference with structured output.
     
@@ -40,7 +40,7 @@ def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temp
         List of parsed JSON responses
     """
     sampling_params = SamplingParams(
-        max_tokens=2048,
+        max_tokens=max_tokens,
         temperature=temperature,
         top_p=0.95,
         structured_outputs=StructuredOutputsParams(json=schema),

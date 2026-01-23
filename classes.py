@@ -57,9 +57,10 @@ class Domain:
 class Question:
     """Represents a research question with associated metadata."""
     
-    def __init__(self, id: str, question: str, rationale: str, parent_question: Optional['Question'] = None):
+    def __init__(self, id: str, domain_specific_question: str, domain_agnostic_question: str, rationale: str, parent_question: Optional['Question'] = None):
         self.id = id
-        self.question = question
+        self.domain_specific_question = domain_specific_question
+        self.domain_agnostic_question = domain_agnostic_question
         self.rationale = rationale
         self.parent_question = parent_question  # For tracking sub-question hierarchy
         
@@ -92,7 +93,7 @@ class Question:
         return not self.is_addressed_in_target or len(self.remaining_challenges) > 0
     
     def __str__(self):
-        return f"Question(id={self.id}, question={self.question})"
+        return f"Question(id={self.id}, domain_specific={self.domain_specific_question}, domain_agnostic={self.domain_agnostic_question})"
     
     def __repr__(self):
         return self.__str__()
@@ -140,7 +141,8 @@ class ResearchProblem:
         for q_data in decomposition_json["research_questions"]:
             question = Question(
                 id=q_data["id"],
-                question=q_data["question"],
+                domain_specific_question=q_data["domain_specific_question"],
+                domain_agnostic_question=q_data["domain_agnostic_question"],
                 rationale=q_data["rationale"]
             )
             
@@ -156,13 +158,14 @@ class ResearchProblem:
     def add_research_question(self, question: Question):
         """Add a top-level research question."""
         self.research_questions.append(question)
-        self.all_questions[question.id] = question
+        self.all_questions[str(question)] = question
     
     def add_remaining_challenge(self, parent_question: Question, challenge_data: dict):
         """Create and add a remaining challenge as a sub-question."""
         challenge = Question(
             id=challenge_data["challenge_id"],
-            question=challenge_data["challenge_question"],
+            domain_specific_question=challenge_data["domain_specific_challenge_question"],
+            domain_agnostic_question=challenge_data["domain_agnostic_challenge_question"],
             rationale=f'{challenge_data.get("importance", "")} {challenge_data.get("why_unaddressed", "")}',
             parent_question=parent_question
         )

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Dict, Optional
 
 
 # =============================================================================
@@ -8,18 +8,19 @@ from typing import List, Optional
 
 def create_initial_decomposition_prompt(problem_statement: str, target_domain: str) -> str:
     """
-    Creates a prompt for decomposing a research problem into fundamental questions
-    with target-domain search queries.
-    
-    Args:
-        problem_statement: The research problem to decompose
-        target_domain: The primary domain (e.g., "Computer Science")
-        
-    Returns:
-        Formatted prompt string for LLM
+    Creates a prompt for decomposing a research problem into fundamental questions,
+    grounded in a *LLM-selected fine-grained subfield* of the target domain, and
+    producing BOTH:
+      (1) a domain-specific version (for target-domain search), and
+      (2) a domain-agnostic version (for external-domain search).
     """
-    
-    prompt = f"""You are an expert research strategist. Your task is to decompose a research problem into subfield-specific fundamental questions and identify fine-grained-domain search queries.
+
+    prompt = f"""You are an expert research strategist. Your task is to:
+(1) identify the most relevant **fine-grained subfield** within the target domain for the given research problem,
+(2) decompose the problem into fundamental bottleneck questions that are **grounded in that subfield** (not overly high-level),
+and (3) produce two parallel formulations for each question:
+   - a **domain-specific** version (optimized for searching within the identified subfield of the target domain)
+   - a **domain-agnostic** version (optimized for discovering relevant work in external domains)
 
 # RESEARCH PROBLEM
 {problem_statement}
@@ -27,185 +28,284 @@ def create_initial_decomposition_prompt(problem_statement: str, target_domain: s
 # TARGET DOMAIN
 {target_domain}
 
-# YOUR TASK
-Break down this problem into 3-5 fundamental research questions that represent core conceptual bottlenecks. For each question, provide 3-5 concise search queries (max 5 words each) to find relevant work in the target domain.
+# STEP 1: SUBFIELD IDENTIFICATION (MANDATORY)
+First, determine the most relevant **fine_grained_domain** (a specific subfield within {target_domain}) that the problem best fits.
+Then, all subsequent questions and queries MUST be aligned to this subfield’s typical concepts, bottlenecks, and vocabulary.
 
-# DECOMPOSITION PRINCIPLES
+Examples of "fine_grained_domain" (illustrative):
+- Computer Science → "Probabilistic graphical models", "Distributed systems", "Program analysis", "Human-computer interaction"
+- Biology → "Gene regulatory networks", "Protein folding", "Microbial ecology"
+- Economics → "Market design", "Behavioral decision theory", "Causal inference"
 
-Each research question must be:
-- **Atomic**: Addresses one distinct conceptual challenge for solving the research problem
-- **More Fine-Grained**: Tackles a more specific question (fine-grained) within the research problem (coarse-grained)
-- **Critical**: Necessary for making progress on the problem
-- **Cross-disciplinary**: Formulated to allow mapping to other fields (avoid domain-specific jargon)
-- **Mechanistic**: Focuses on "how" or "why", not just "what"
+# STEP 2: CORE CHALLENGE
+Write a 2–3 sentence **core_challenge** that frames the fundamental difficulty *as researchers in the fine_grained_domain would*.
 
-# SEARCH QUERY REQUIREMENTS
+# STEP 3: QUESTION DECOMPOSITION (SUBFIELD-GROUNDED)
+Produce 3–5 underlying bottleneck questions. These should be:
+- **Atomic**: one distinct conceptual challenge
+- **More Fine-Grained**: specific enough to be useful in the identified subfield (avoid generic questions like “How do we improve performance?”)
+- **Critical**: necessary to make progress
+- **Mechanistic**: focuses on “how/why” (causal/process/constraints)
+- **Not solution-prescriptive**: avoid naming a single algorithm/tool as the question (no “tune X hyperparameter”)
 
-Each query must be:
-- **Concise**: Maximum 5 words
-- **Specific**: Uses precise terminology likely in paper titles/abstracts and reflects critical term(s) from the research problem + question
-- **Diverse**: Cover different aspects or approaches to the research problem
+IMPORTANT: The chosen questions should be at the *right altitude*:
+- Not so broad they apply to every subfield (“How do we model uncertainty?”)
+- Not so narrow they pre-commit to a specific technique (“How do we tune Adam’s beta2?”)
+Aim for subfield-relevant bottlenecks that recur in the fine_grained_domain literature.
+
+# STEP 4: QUESTION PAIRING (TWO VERSIONS OF THE SAME BOTTLENECK)
+For EACH research question, produce:
+- **domain_specific_question**: uses terminology typical of the **fine_grained_domain** (subfield-level terms are encouraged)
+- **domain_agnostic_question**: same bottleneck, but phrased in cross-disciplinary mechanistic language, avoiding {target_domain} / subfield jargon
+
+Constraint: Both questions must refer to the *same* bottleneck.
+
+# STEP 5: SEARCH QUERIES (SUBFIELD-ALIGNED)
+For EACH research question, provide:
+- 3–5 **target_domain_queries** (max 5 words each)
+  - MUST strongly reflect **fine_grained_domain** vocabulary and canonical phrases
+  - SHOULD be specific enough to appear in titles/abstracts in that subfield
+  - SHOULD vary across theoretical/methodological/evaluative angles
 
 # OUTPUT FORMAT
 
 Return a JSON object:
 
 {{
-    "problem_statement": "{problem_statement}",
-    "target_domain": "{target_domain}",
-    "fine_grained_domain": "Specific subfield within {target_domain}",
-    "core_challenge": "2-3 sentence summary of the fundamental challenge",
-    "research_questions": [
-        {{
-            "id": "q1",
-            "question": "Clear, conceptual question avoiding domain jargon",
-            "rationale": "Why this is a critical bottleneck",
-            "target_domain_queries": [
-                "query one max five words",
-                "query two concise specific",
-                "query three focused searchable"
-            ]
-        }}
-    ]
+  "problem_statement": "{problem_statement}",
+  "target_domain": "{target_domain}",
+  "fine_grained_domain": "Specific subfield within {target_domain}",
+  "core_challenge": "2-3 sentence subfield-grounded summary of the fundamental challenge",
+  "research_questions": [
+    {{
+      "id": "q1",
+      "domain_specific_question": "Conceptual bottleneck question using fine_grained_domain terminology",
+      "domain_agnostic_question": "Same bottleneck, jargon-free mechanistic phrasing",
+      "rationale": "Why this is a critical bottleneck in the fine_grained_domain",
+      "target_domain_queries": [
+        "max five words",
+        "subfield canonical phrase",
+        "title/abstract likely terms"
+      ]
+    }}
+  ]
 }}
 
-# EXAMPLE
+# EXAMPLE (BRIEF)
 
-For problem: "Develop AI agents that learn from sparse, delayed rewards"
-Good question: "How can a system attribute delayed outcomes to earlier actions?"
-Good queries: ["temporal credit assignment", "delayed reward learning", "eligibility trace methods"]
+If fine_grained_domain = "Probabilistic graphical models":
+- domain_specific_question might reference "identifiability", "latent variables", "structure learning"
+- target_domain_queries might include those phrases (<=5 words)
+- domain_agnostic_question would translate to general terms like "recover hidden causes from observations"
 
-Bad question: "How do we optimize TD-lambda hyperparameters?" (too specific, solution-focused)
-Bad queries: ["machine learning", "how to do reinforcement learning with delays"] (too generic/long)
-
-Now decompose the research problem following these principles.
+Now perform the decomposition following these instructions. Ensure every question and query is clearly aligned with the chosen fine_grained_domain.
 """
-    
     return prompt
 
+# =============================================================================
+# SCHEMA
+# =============================================================================
 
 class ResearchQuestion(BaseModel):
     id: str
-    question: str
-    rationale: str
-    target_domain_queries: List[str] = Field(min_items=3, max_items=5)
+
+    domain_specific_question: str = Field(
+        description=(
+            "Same bottleneck phrased using terminology typical of the identified fine_grained_domain "
+            "(subfield-level vocabulary encouraged)."
+        )
+    )
+    domain_agnostic_question: str = Field(
+        description=(
+            "Same bottleneck phrased in cross-disciplinary, jargon-free mechanistic language; "
+            "must avoid target-domain and fine_grained_domain jargon."
+        )
+    )
+
+    rationale: str = Field(
+        description="Why this bottleneck is critical specifically within the identified fine_grained_domain."
+    )
+
+    target_domain_queries: List[str] = Field(
+        min_items=3,
+        max_items=5,
+        description=(
+            "Search queries (<=5 words) for within-target-domain search. Must strongly reflect "
+            "fine_grained_domain vocabulary and canonical phrases likely in titles/abstracts."
+        ),
+    )
 
 
 class InitialDecomposition(BaseModel):
     problem_statement: str
     target_domain: str
-    fine_grained_domain: str
-    core_challenge: str
-    research_questions: List[ResearchQuestion]
+
+    fine_grained_domain: str = Field(
+        description="Most relevant specific subfield within the target_domain for this problem."
+    )
+    core_challenge: str = Field(
+        description="2–3 sentence summary of the fundamental challenge, framed in fine_grained_domain terms."
+    )
+
+    research_questions: List[ResearchQuestion] = Field(
+        min_items=3,
+        max_items=5,
+        description="3–5 subfield-grounded bottleneck questions, each with domain-specific and domain-agnostic versions.",
+    )
+
 
 
 # =============================================================================
-# PROMPT 2: Target Domain Analysis
+# PROMPT 2: Fine-Grained Target Subfield Analysis (Explicit Assessment Rubric)
 # =============================================================================
 
 def create_target_domain_analysis_prompt(
     research_problem: str,
-    question: str,
+    domain_specific_question: str,
+    domain_agnostic_question: str,
     question_rationale: str,
-    papers_with_snippets: dict,
-    target_domain: str
+    papers_with_snippets: Dict[str, List[str]],
+    target_domain: str,
+    fine_grained_domain: str,
 ) -> str:
     """
-    Creates a prompt for analyzing retrieved papers from the target domain.
-    
-    Args:
-        question: The research question being analyzed
-        question_rationale: Why this question is important
-        papers_with_snippets: Dict mapping paper titles to lists of snippets
-        target_domain: The domain papers were retrieved from
-        
-    Returns:
-        Formatted prompt string for LLM
+    Creates a prompt for analyzing retrieved papers from a fine-grained subfield
+    of the target domain. Remaining challenges and overall assessment are reported
+    in both domain-specific and domain-agnostic forms, with an explicit rubric for
+    determining coverage.
     """
-    
+
     # Format papers for the prompt
-    papers_formatted = []
+    papers_formatted: List[str] = []
     for i, (title, snippets) in enumerate(papers_with_snippets.items(), 1):
         papers_formatted.append(f"\n## Paper {i}: {title}")
         for j, snippet in enumerate(snippets, 1):
             papers_formatted.append(f"   Snippet {j}: {snippet}")
-    
+
     papers_text = "\n".join(papers_formatted)
-    
-    prompt = f"""You are an expert research analyst. Analyze retrieved papers from the target domain to assess progress on a research question that should ultimately target the research problem.
+
+    prompt = f"""You are an expert research analyst. Analyze retrieved papers from a specific subfield of the target domain to assess progress on a research question that supports the overall research problem.
 
 # RESEARCH PROBLEM
 {research_problem}
 
-# RESEARCH QUESTION
-{question}
-
-**Rationale**: {question_rationale}
-
 # TARGET DOMAIN
 {target_domain}
 
-# RETRIEVED PAPERS AND SNIPPETS
+# FINE-GRAINED DOMAIN (SUBFIELD)
+{fine_grained_domain}
+
+# RESEARCH QUESTION (PAIRED FORMULATIONS)
+- **Domain-specific question** (use for relevance and coverage assessment):
+{domain_specific_question}
+
+- **Domain-agnostic question** (use for conceptual gap articulation):
+{domain_agnostic_question}
+
+**Rationale**: {question_rationale}
+
+# RETRIEVED PAPERS AND SNIPPETS (FROM THE TARGET DOMAIN)
 {papers_text}
 
 # YOUR TASK
 
-1. **Assess Relevance**: For each paper, determine if it genuinely addresses the research question (not just tangentially related)
+0. **Subfield grounding**
+   - Treat {fine_grained_domain} as the authoritative lens for interpretation.
+   - Judge relevance, coverage, and gaps strictly at the *subfield-appropriate level of specificity*.
 
-2. **Identify Addressed Sub-questions**: Across all relevant papers, what specific sub-questions or aspects of the main question have been adequately addressed? If no papers are relevant, output an empty list.
+1. **Assess Paper Relevance**
+   For each paper, determine whether it directly addresses the **domain-specific question**
+   as understood in {fine_grained_domain}.
+   - Mark papers that only provide background, tangential tools, or adjacent applications as *not relevant*.
 
-3. **Identify Remaining Challenges**: What meaningful challenges for solving the research question ({question}) remain unaddressed? These should be:
-   - **Non-iterative**: Not just "do X better" but fundamentally different problems
-   - **Major**: Represent significant conceptual or practical bottlenecks for solving the research question that are not addressed by the papers or the target domain to the best of your knowledge.
-   - **Atomic**: Each challenge is a distinct issue
-   - **Formulated as a question**: If the original research question was not addressed at all, just repeat it here. Otherwise, word the remaining challenges as clear questions.
-   If no challenges remain, output an empty list.
+2. **Identify Addressed Aspects**
+   Across all *relevant* papers, identify which specific sub-aspects of the
+   domain-specific question are convincingly addressed.
+   - Each aspect should correspond to a concrete conceptual or methodological component.
+   - If no papers are relevant, output an empty list.
 
-4. **Overall Assessment**: Based on the above, is the research question "substantially addressed", "partially addressed", or "largely unaddressed" in this domain?
+3. **Identify Remaining Challenges (Dual Form)**
+   Identify what remains unsolved *given the evidence above*.
+   - Each challenge must be:
+     - **Atomic** (one bottleneck)
+     - **Major** (blocking full resolution of the question)
+     - **Non-iterative** (not just “improve X”)
+   - For each challenge, output:
+     - a **domain_specific_challenge_question** (fine_grained_domain terminology)
+     - a **domain_agnostic_challenge_question** (jargon-free, mechanistic framing)
+   - If *no papers address the question at all*, the first remaining challenge should
+     restate the research question itself (in both forms).
+   - If *nothing meaningful remains*, output an empty list.
+
+4. **Determine Overall Assessment (FOLLOW THIS RUBRIC EXACTLY)**
+
+You MUST choose **one** of the following labels using the criteria below.
+Do NOT default to "partially addressed".
+
+- **"largely unaddressed"** if:
+  - Zero or nearly zero papers are relevant, OR
+  - Relevant papers exist but fail to address the *core mechanism* of the question, OR
+  - The main question itself appears verbatim (or nearly so) in remaining_challenges.
+
+- **"partially addressed"** if:
+  - There is clear, non-trivial progress on *some* core aspects, BUT
+  - At least one **major conceptual bottleneck** remains that would prevent a full solution.
+
+- **"substantially addressed"** if:
+  - Most core aspects are addressed by multiple papers, AND
+  - Remaining challenges (if any) are minor, edge-case, or refinement-level rather than foundational.
+
+Before selecting "partially addressed", explicitly check:
+> “Is there decisive evidence that *some* core bottlenecks are solved, but *others fundamentally remain*?”
+If the answer is **no**, choose either "largely unaddressed" or "substantially addressed".
 
 # OUTPUT FORMAT
 
 Return a JSON object:
 
 {{
-    "question": "{question}",
-    "paper_relevance": [
-        {{
-            "paper_title": "Exact title from above",
-            "is_relevant": bool,
-            "relevance_explanation": "Brief explanation of why relevant/irrelevant"
-        }}
-    ],
-    "addressed_aspects": [
-        {{
-            "sub_question": "What specific aspect was addressed?",
-            "evidence": "Which papers address this and how?"
-        }}
-    ],
-    "remaining_challenges": [
-        {{
-            "challenge_id": "c1",
-            "challenge_question": "Clear question about what remains unsolved for research question ({question})",
-            "why_unaddressed": "Why current work doesn't solve this",
-            "importance": "Why solving this matters for the main research problem and research question."
-        }}
-    ],
-    "overall_assessment": "Is the research question \"substantially addressed\", \"partially addressed\", or \"largely unaddressed\"?"
+  "domain_specific_question": "{domain_specific_question}",
+  "domain_agnostic_question": "{domain_agnostic_question}",
+  "target_domain": "{target_domain}",
+  "fine_grained_domain": "{fine_grained_domain}",
+  "paper_relevance": [
+    {{
+      "paper_title": "Exact title from above",
+      "is_relevant": bool,
+      "relevance_explanation": "Why this paper does or does not address the domain-specific question"
+    }}
+  ],
+  "addressed_aspects": [
+    {{
+      "sub_question": "Which specific aspect of the domain-specific question was addressed?",
+      "evidence": "Which papers address this and how?"
+    }}
+  ],
+  "remaining_challenges": [
+    {{
+      "challenge_id": "c1",
+      "domain_specific_challenge_question": "Unsolved challenge in fine_grained_domain terminology",
+      "domain_agnostic_challenge_question": "Same challenge in cross-disciplinary language without any target or fine-grained domain jargon.",
+      "why_unaddressed": "Why existing work fails to solve this? Write 3-4 sentences on what makes the challenge difficult to solve and what would be necessary to solve it.",
+      "importance": "Why this challenge blocks full resolution of the research question"
+    }}
+  ],
+  "overall_assessment": "substantially addressed | partially addressed | largely unaddressed"
 }}
 
 # GUIDELINES
 
-- Be critical but fair in assessing relevance
-- "Addressed" means substantial progress exists, not perfection
-- Focus on conceptual gaps, not just performance improvements
-- If all aspects are addressed, remaining_challenges can be empty
-- Base judgments only on provided evidence
+- Be evidence-driven; do not infer unstated paper contributions
+- Prefer "largely unaddressed" over "partially addressed" when in doubt
+- The assessment must be logically consistent with addressed_aspects and remaining_challenges
 
-Now analyze the papers for this research question.
+Now analyze the papers.
 """
-    
     return prompt
 
+# =============================================================================
+# SCHEMA
+# =============================================================================
 
 class PaperRelevance(BaseModel):
     paper_title: str
@@ -220,127 +320,157 @@ class AddressedAspect(BaseModel):
 
 class RemainingChallenge(BaseModel):
     challenge_id: str
-    challenge_question: str
+    domain_specific_challenge_question: str = Field(
+        description="Unsolved challenge phrased using fine_grained_domain terminology."
+    )
+    domain_agnostic_challenge_question: str = Field(
+        description="Same challenge phrased in cross-disciplinary, jargon-free language."
+    )
     why_unaddressed: str
     importance: str
 
 
 class TargetDomainAnalysis(BaseModel):
-    question: str
+    domain_specific_question: str
+    domain_agnostic_question: str
+    target_domain: str
+    fine_grained_domain: str
     paper_relevance: List[PaperRelevance]
     addressed_aspects: List[AddressedAspect]
     remaining_challenges: List[RemainingChallenge]
-    overall_assessment: str
+    overall_assessment: str = Field(
+        description='One of: "substantially addressed", "partially addressed", "largely unaddressed".'
+    )
 
 
 # =============================================================================
-# PROMPT 3: Cross-Domain Query Generation
+# PROMPT 3: Cross-Domain Query Generation (Subfield-Aware, Domain-Agnostic)
 # =============================================================================
 
 def create_cross_domain_query_prompt(
     problem_statement: str,
-    question: str,
+    domain_specific_question: str,
+    domain_agnostic_question: str,
     question_rationale: str,
     target_domain: str,
-    target_domain_assessment: Optional[str] = None
+    fine_grained_domain: str,
+    target_domain_assessment: Optional[str] = None,
 ) -> str:
     """
-    Creates a prompt for identifying cross-domain search queries.
-    
-    Args:
-        question: The research question or challenge
-        question_rationale: Why this question matters
-        target_domain: The original research domain
-        target_domain_assessment: Summary of what was/wasn't addressed in target domain
-        is_new_challenge: Whether this is a newly identified challenge
-        
-    Returns:
-        Formatted prompt string for LLM
+    Creates a prompt for identifying cross-domain search queries using the
+    domain-agnostic version of a research question, while grounding context
+    in the target domain and fine-grained subfield.
     """
-    
-    context_section = ""
-    if target_domain_assessment:
-        context_section = f"""
-# WHY CURRENT {target_domain.upper()} RESEARCH IS INSUFFICIENT:
-{target_domain_assessment}
-"""
-    
-    prompt = f"""You are an expert at identifying cross-disciplinary research connections. Your task is to identify external domains and search queries that could address a research question under the given research problem.
+
+
+    prompt = f"""You are an expert at identifying cross-disciplinary research connections. Your task is to identify **external domains** and **search queries** that could address a research challenge by analogy, shared mechanisms, or transferred principles.
 
 # RESEARCH PROBLEM
 {problem_statement}
 
-# RESEARCH QUESTION
-{question}
+# RESEARCH QUESTION (PAIRED FORMULATIONS)
 
-**Rationale**: {question_rationale}
+- **Domain-specific version** (for context only — do NOT reuse terminology):
+{domain_specific_question}
 
-# ORIGINAL DOMAIN
-{target_domain}
-{context_section}
+- **Domain-agnostic version** (PRIMARY DRIVER for cross-domain search):
+{domain_agnostic_question}
+
+# ORIGINAL DOMAIN CONTEXT
+- Broad domain: {target_domain}
+- Fine-grained subfield: {fine_grained_domain}
+
+# CHALLENGES: WHY CURRENT {target_domain.upper()} RESEARCH (IN {fine_grained_domain.upper()}) IS INSUFFICIENT
+{question_rationale}
 
 # VALID SEMANTIC SCHOLAR DOMAINS
 Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geology, Psychology, Art, History, Geography, Sociology, Business, Political Science, Economics, Philosophy, Mathematics, Engineering, Environmental Science, Agricultural and Food Sciences, Education, Law, Linguistics
 
 # YOUR TASK
 
-Identify 1-3 external domains (from the list above different from the original domain) that may have addressed this question through analogous problems, mechanisms, or principles. For each domain, provide 2-4 specific search queries.
+Using the **domain-agnostic version of the question**, identify **1–3 external domains**
+(from the list above, excluding {target_domain}) that are likely to contain relevant insights for directly addressing the challenges that {target_domain.upper()} research has in addressing the research question..
+
+These domains should have studied:
+- analogous mechanisms to solve the challenges,
+- structurally similar problems,
+- or transferable principles
+
+even if the surface application differs from {fine_grained_domain}.
+
+For EACH selected domain:
+- Explain *why* this domain is a good match for addressing the challenges in solving the domain-agnostic question
+- Provide **2–4 search queries** suitable for that domain
 
 # QUERY DESIGN PRINCIPLES
 
-- **Domain-appropriate terminology**: Use terms natural to that field (e.g., "foraging theory" for Biology, "intertemporal choice" for Economics)
-- **Mechanistic focus**: Target underlying principles, not surface similarities
-- **Concise**: Maximum 5 words per query
-- **Varied**: Cover different angles or approaches within the domain
+Each query must be:
+- **Domain-appropriate**: use terminology natural to the selected external field
+- **Mechanistic**: targets underlying processes, constraints, or principles
+- **Concise**: maximum 5 words
+- **Specific**: likely to appear in paper titles or abstracts
+- **Non-redundant**: queries should reflect different angles within the same domain
+
+STRICT CONSTRAINTS:
+- Do NOT reuse terminology specific to {target_domain} or {fine_grained_domain}
+- Do NOT restate the domain-specific question
+- Queries must be directly derived from the **domain-agnostic question**
 
 # OUTPUT FORMAT
 
 Return a JSON object:
 
 {{
-    "question": "{question}",
-    "cross_domain_searches": [
-        {{
-            "domain": "Valid domain from the list",
-            "domain_rationale": "Why this domain likely has relevant insights",
-            "queries": [
-                "concise query max five",
-                "another specific query",
-                "third targeted query"
-            ]
-        }}
-    ]
+  "domain_specific_question": "{domain_specific_question}",
+  "domain_agnostic_question": "{domain_agnostic_question}",
+  "cross_domain_searches": [
+    {{
+      "domain": "Valid domain from the list",
+      "domain_rationale": "Why this domain likely has relevant insights for the domain-agnostic question",
+      "queries": [
+        "concise query max five",
+        "another specific query",
+        "third targeted query"
+      ]
+    }}
+  ]
 }}
 
 # EXAMPLE
 
-Question: "How can a system attribute delayed outcomes to earlier actions?"
+Domain-agnostic question:
+"How can a system link delayed outcomes to earlier decisions?"
+
 Good output:
 {{
-    "cross_domain_searches": [
-        {{
-            "domain": "Psychology",
-            "domain_rationale": "Animal learning research extensively studied delayed reinforcement and temporal credit assignment",
-            "queries": ["delayed reinforcement learning", "trace conditioning mechanisms", "temporal contiguity association"]
-        }},
-        {{
-            "domain": "Neuroscience", 
-            "domain_rationale": "Dopamine systems solve credit assignment for rewards occurring after actions",
-            "queries": ["dopamine prediction error", "reward timing neurons", "temporal difference brain"]
-        }}
-    ]
+  "cross_domain_searches": [
+    {{
+      "domain": "Psychology",
+      "domain_rationale": "Psychology studies how agents associate actions with delayed feedback through learning and conditioning",
+      "queries": ["delayed reinforcement learning", "trace conditioning", "temporal contiguity effects"]
+    }},
+    {{
+      "domain": "Economics",
+      "domain_rationale": "Economic models analyze how agents make decisions under delayed or deferred consequences",
+      "queries": ["intertemporal choice", "delayed incentives", "dynamic decision making"]
+    }}
+  ]
 }}
 
-Bad example:
-- Domain not in list: "Cognitive Science" (not a valid Semantic Scholar domain)
-- Too generic of a query: ["learning", "psychology of rewards"]
-- Too long of a query: ["how do animals learn from delayed rewards"]
+Bad examples:
+- Using target-domain terms in queries
+- Selecting domains not in the provided list
+- Generic queries like ["learning", "decision making"]
+- Queries longer than five words
 
-Now identify cross-domain searches for this question.
+Now identify cross-domain searches for this research question.
 """
-    
     return prompt
 
+
+# =============================================================================
+# SCHEMA
+# =============================================================================
 
 class CrossDomainSearch(BaseModel):
     domain: str
@@ -349,7 +479,8 @@ class CrossDomainSearch(BaseModel):
 
 
 class CrossDomainQueries(BaseModel):
-    question: str
+    domain_specific_question: str
+    domain_agnostic_question: str
     cross_domain_searches: List[CrossDomainSearch] = Field(min_items=1, max_items=3)
 
 
@@ -359,22 +490,26 @@ class CrossDomainQueries(BaseModel):
 
 def create_cross_domain_analysis_prompt(
     problem_statement: str,
-    question: str,
-    question_rationale: str,
+    domain_specific_question: str,
+    domain_agnostic_question: str,
+    question_challenge: str,
     source_domain: str,
-    papers_with_snippets: dict,
-    target_domain: str
+    papers_with_snippets: Dict[str, List[str]],
+    target_domain: str,
+    fine_grained_domain: str
 ) -> str:
     """
-    Creates a prompt for analyzing cross-domain papers and extracting takeaways.
+    Creates a prompt for analyzing cross-domain papers to find solutions to challenges.
     
     Args:
-        problem_statement: The research problem
-        question: The research question being analyzed
-        question_rationale: Why this question matters
+        problem_statement: The overall research problem
+        domain_specific_question: Question phrased in target domain terminology
+        domain_agnostic_question: Question phrased in general terms
+        question_challenge: The specific challenge to be solved
         source_domain: The external domain being analyzed
         papers_with_snippets: Dict mapping paper titles to lists of snippets
-        target_domain: The original target domain
+        target_domain: The broad target domain (e.g., "Computer Science")
+        fine_grained_domain: The specific subfield (e.g., "Reinforcement Learning")
         
     Returns:
         Formatted prompt string for LLM
@@ -389,121 +524,156 @@ def create_cross_domain_analysis_prompt(
     
     papers_text = "\n".join(papers_formatted) if papers_formatted else "No papers retrieved."
     
-    prompt = f"""You are an expert at extracting cross-disciplinary insights. Analyze papers from an external domain to assess their relevance to a research question and extract high-level takeaways.
+    prompt = f"""You are an expert at identifying cross-disciplinary solutions to research challenges. Your goal is to analyze papers from an external domain to determine if they solve a specific challenge and extract actionable solution approaches.
 
 # RESEARCH PROBLEM
 {problem_statement}
 
-# RESEARCH QUESTION
-{question}
+# TARGET DOMAIN CONTEXT
+- **Broad Domain**: {target_domain}
+- **Specific Subfield**: {fine_grained_domain}
 
-**Rationale**: {question_rationale}
+# THE CHALLENGE TO SOLVE
 
-# SOURCE DOMAIN
+**Domain-Specific Formulation** ({fine_grained_domain}):
+{domain_specific_question}
+
+**Domain-Agnostic Formulation** (General):
+{domain_agnostic_question}
+
+**Specific Challenge**:
+{question_challenge}
+
+# SOURCE DOMAIN TO ANALYZE
 {source_domain}
-
-# TARGET DOMAIN (for context)
-{target_domain}
 
 # RETRIEVED PAPERS AND SNIPPETS FROM {source_domain.upper()}
 {papers_text}
 
 # YOUR TASK
 
-1. **Assess Domain Relevance**: Is this domain ({source_domain}) relevant to the research question? Consider:
-   - Do the papers actually address analogous problems or mechanisms at a deeper level?
-   - Are there genuine conceptual connections, or only superficial similarities?
-   - Would insights from this domain likely transfer to the target domain?
+## 1. Assess Paper Relevance
+For each paper, determine if it **directly attempts to solve** the challenge (not just tangentially related).
 
-2. **Assess Domain Adequacy**: Based on the papers' relevance, do these papers provide sufficient insights? Consider:
-   - Do the papers offer substantive solutions, frameworks, or principles?
-   - Is there enough depth to extract actionable takeaways?
-   - Are there clear mechanisms or approaches that could inform the target domain?
+## 2. Extract Solution Takeaways
+For papers that address the challenge, identify how they solve it. Each takeaway should:
+- Capture a **concrete solution approach or mechanism**
+- Be presented in **two formulations**:
+  - **{source_domain}-specific**: Using natural {source_domain} terminology and concepts
+  - **{fine_grained_domain}-specific**: Translated to {fine_grained_domain} terminology and concepts
+- Be **evidence-based**: Clearly grounded in the provided papers
+- Focus on **how the solution works**, not just what it achieves
 
-3. **Extract High-Level Takeaways**: If the domain is relevant and adequate, identify 2-5 key insights that are:
-   - **Domain-agnostic**: Formulated as general principles, not {source_domain}-specific details
-   - **Mechanistic**: Focused on "how" and "why", not just "what"
-   - **Actionable**: Could potentially inform approaches in {target_domain}
-   - **Evidence-based**: Clearly supported by the provided papers
-   - **Be Conservative**: Only include takeaways you are confident are well-supported
+## 3. Synthesize Overall Assessment
+Based on all takeaways, judge whether the **domain-agnostic crux** of the challenge is sufficiently addressed by this source domain.
 
 # OUTPUT FORMAT
 
 Return a JSON object:
 
 {{
-    "question": "{question}",
+    "domain_specific_question": "{domain_specific_question}",
+    "domain_agnostic_question": "{domain_agnostic_question}",
+    "challenge": "{question_challenge}",
     "source_domain": "{source_domain}",
+    "target_domain": "{target_domain}",
+    "fine_grained_domain": "{fine_grained_domain}",
+    
     "paper_relevance": [
         {{
             "paper_title": "Exact title from above",
-            "is_relevant": bool,
-            "relevance_explanation": "Brief explanation of why relevant/irrelevant"
+            "directly_addresses_challenge": true,
+            "relevance_explanation": "Explain how this paper does/doesn't directly attempt to solve the challenge"
         }}
     ],
-    "is_relevant": bool,
-    "relevance_explanation": "Brief explanation of why this domain is/isn't relevant to the question",
-    "is_adequate": bool,
-    "adequacy_explanation": "Explain whether papers provide sufficient depth and insights",
-    "high_level_takeaways": [
+    
+    "solution_takeaways": [
         {{
             "takeaway_id": "t1",
-            "principle": "Clear, domain-agnostic statement of the key insight or mechanism",
-            "explanation": "How this principle works and why it matters",
-            "supporting_evidence": "Which papers demonstrate this and how"
+            "source_domain_formulation": "Description of the solution using {source_domain} terminology and concepts",
+            "target_domain_formulation": "Same solution translated to {fine_grained_domain} terminology and concepts",
+            "mechanism_explanation": "How this solution approach works and why it addresses the challenge",
+            "supporting_papers": ["Paper Title 1", "Paper Title 2"]
         }}
-    ]
+    ],
+    
+    "challenge_sufficiency_assessment": {{
+        "is_challenge_addressed": true,
+        "assessment_explanation": "Explain whether the domain-agnostic crux of the challenge is sufficiently solved by the source domain's approaches",
+        "key_solutions_summary": "Brief summary of the main solution approaches found",
+        "remaining_gaps": "What aspects of the challenge remain unaddressed (if any)"
+    }}
 }}
 
 # GUIDELINES
 
-- Be honest about relevance - superficial keyword matches don't mean true relevance
-- "Relevant" means the domain addresses analogous problems/mechanisms, not just similar terms
-- "Adequate" means sufficient depth for extracting actionable insights
-- If not relevant, set is_relevant=false and leave high_level_takeaways as empty list
-- If relevant but not adequate (e.g., too shallow), set is_adequate=false
-- Takeaways should be abstracted to their core principles, stripped of domain-specific jargon
-- Focus on mechanisms and approaches that could generalize, not specific implementations
+- **Direct relevance only**: Only mark papers as relevant if they actively try to solve the challenge, not just mention related concepts
+- **Conservative assessment**: Only include takeaways you're confident are well-supported by evidence
+- **Dual formulations are critical**: Each takeaway must have both source-domain and target-domain versions
+  - Source-domain version should use natural terminology from that field
+  - Target-domain version should map cleanly to {fine_grained_domain} concepts
+- **Focus on mechanisms**: Explain *how* solutions work, not just *what* they achieve
+- **Challenge sufficiency**: Judge based on whether the core problem is solved, not whether implementation details are provided
+- **Honest assessment**: If the source domain doesn't adequately address the challenge, say so
 
 # EXAMPLE
 
-Question: "How can a system attribute delayed outcomes to earlier actions?"
+Challenge: "How can a system attribute delayed outcomes to earlier actions?"
 Source Domain: "Psychology"
+Fine-Grained Domain: "Reinforcement Learning"
 
 Good takeaway:
 {{
     "takeaway_id": "t1",
-    "principle": "Delayed outcomes can be attributed to earlier actions by preserving a fading influence of past events until feedback arrives",
-    "explanation": "When outcomes do not immediately follow actions, systems can still assign credit by retaining a temporary, gradually weakening influence of prior actions or states. When feedback eventually occurs, earlier elements that remain influential receive proportionate credit, enabling learning across time gaps.",
-    "supporting_evidence": "Studies on delayed learning and conditioning show that organisms can learn associations even when outcomes occur later, as long as internal representations of earlier events persist long enough to overlap with feedback."
+    "source_domain_formulation": "Animals maintain decaying memory traces of conditioned stimuli that persist after stimulus offset. When an unconditioned stimulus (reward) arrives later, learning occurs proportionally to the remaining trace strength, enabling associations across temporal gaps.",
+    "target_domain_formulation": "RL agents can maintain exponentially decaying eligibility traces for state-action pairs visited earlier in an episode. When a delayed reward arrives, credit is assigned to prior state-action pairs proportionally to their remaining trace values, solving the temporal credit assignment problem.",
+    "mechanism_explanation": "By preserving a gradually fading representation of past events, the system maintains a 'bridge' that connects earlier decisions to later outcomes. The decay rate controls how far back credit propagates, balancing recency bias with long-term dependencies.",
+    "supporting_papers": ["Temporal Conditioning in Animal Learning", "Trace Decay Mechanisms in Associative Learning"]
 }}
 
-Bad takeaway (too domain-specific):
-"Dopamine neurons in the ventral tegmental area fire in response to reward prediction errors"
-→ Should be: "Prediction error signals can drive learning by indicating discrepancies between expected and actual outcomes"
+Bad takeaway (not dual formulation):
+- Only provides domain-agnostic version without both source and target formulations
 
-Now analyze the {source_domain} papers for this research question.
+Bad takeaway (too shallow):
+- "Use memory to connect past and present" → Needs to explain *how* memory is structured and used
+
+Now analyze whether {source_domain} papers solve the challenge for {fine_grained_domain}.
 """
     
     return prompt
 
 
-class HighLevelTakeaway(BaseModel):
+class SolutionTakeaway(BaseModel):
     takeaway_id: str
-    principle: str
-    explanation: str
-    supporting_evidence: str
+    source_domain_formulation: str
+    target_domain_formulation: str
+    mechanism_explanation: str
+    supporting_papers: List[str]
+
+
+class ChallengeSufficiencyAssessment(BaseModel):
+    is_challenge_addressed: bool
+    assessment_explanation: str
+    key_solutions_summary: str
+    remaining_gaps: str
+
+
+class PaperChallengeRelevance(BaseModel):
+    paper_title: str
+    directly_addresses_challenge: bool
+    relevance_explanation: str
 
 
 class CrossDomainAnalysis(BaseModel):
-    question: str
+    domain_specific_question: str
+    domain_agnostic_question: str
+    challenge: str
     source_domain: str
-    paper_relevance: List[PaperRelevance]
-    is_relevant: bool
-    relevance_explanation: str
-    is_adequate: bool
-    adequacy_explanation: str
-    high_level_takeaways: List[HighLevelTakeaway]
+    target_domain: str
+    fine_grained_domain: str
+    paper_relevance: List[PaperChallengeRelevance]
+    solution_takeaways: List[SolutionTakeaway]
+    challenge_sufficiency_assessment: ChallengeSufficiencyAssessment
 
 
 # =============================================================================
