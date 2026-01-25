@@ -2,6 +2,8 @@ from vllm import SamplingParams
 from vllm.sampling_params import StructuredOutputsParams
 import json_repair
 from typing import List, Dict
+from classes import Question, Domain
+from search import search_semantic_scholar, collect_snippets
 
 def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7, max_tokens: int = 2048) -> List[dict]:
     """

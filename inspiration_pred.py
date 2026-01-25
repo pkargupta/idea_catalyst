@@ -6,6 +6,10 @@ potential interdisciplinary connections and solutions.
 """
 
 import os
+# Environment configuration
+os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+
 import json
 import argparse
 from collections import defaultdict
@@ -25,10 +29,6 @@ from prompts import (
 )
 from classes import ResearchProblem
 from utils import batch_llm_inference, retrieve_papers_for_question
-
-# Environment configuration
-os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 
 def decompose(args, llm, problem_statement):
@@ -608,6 +608,7 @@ def main():
     # Process each problem
     for problem_id, problem_info in tqdm(problems.items()):
         process_single_problem(args, llm, problem_id, problem_info)
+        1/0
 
 
 if __name__ == "__main__":
