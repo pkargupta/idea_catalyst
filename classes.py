@@ -21,6 +21,17 @@ class Domain:
         """Add retrieved papers and snippets for a question."""
         self.question2papers[question] = papers
     
+    def del_question_paper(self, question, papers):
+        """Delete specific papers for a question."""
+        if question in self.question2papers:
+            if type(papers) is str:
+                if papers in self.question2papers[question]:
+                    del self.question2papers[question][papers]
+            else:
+                for paper in papers:
+                    if paper in self.question2papers[question]:
+                        del self.question2papers[question][paper]
+        
     def add_question_analysis(self, question: 'Question', analysis):
         """Add target domain analysis for a question (only applicable to target domain)."""
         self.question2analysis[question] = analysis

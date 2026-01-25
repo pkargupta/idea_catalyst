@@ -490,7 +490,6 @@ class CrossDomainQueries(BaseModel):
 
 def create_cross_domain_analysis_prompt(
     problem_statement: str,
-    domain_specific_question: str,
     domain_agnostic_question: str,
     question_challenge: str,
     source_domain: str,
@@ -535,13 +534,10 @@ def create_cross_domain_analysis_prompt(
 
 # THE CHALLENGE TO SOLVE
 
-**Domain-Specific Formulation** ({fine_grained_domain}):
-{domain_specific_question}
-
-**Domain-Agnostic Formulation** (General):
+**Conceptual Challenge Formulation**:
 {domain_agnostic_question}
 
-**Specific Challenge**:
+**What makes this challenging? What is the bottleneck to solving it**:
 {question_challenge}
 
 # SOURCE DOMAIN TO ANALYZE
@@ -558,23 +554,20 @@ For each paper, determine if it **directly attempts to solve** the challenge (no
 ## 2. Extract Solution Takeaways
 For papers that address the challenge, identify how they solve it. Each takeaway should:
 - Capture a **concrete solution approach or mechanism**
-- Be presented in **two formulations**:
-  - **{source_domain}-specific**: Using natural {source_domain} terminology and concepts
-  - **{fine_grained_domain}-specific**: Translated to {fine_grained_domain} terminology and concepts
+- Be presented in the following **formulation**:
+  - **{source_domain}-specific**: Using natural {source_domain} terminology and concepts. Be detailed in your explanation.
 - Be **evidence-based**: Clearly grounded in the provided papers
 - Focus on **how the solution works**, not just what it achieves
 
 ## 3. Synthesize Overall Assessment
-Based on all takeaways, judge whether the **domain-agnostic crux** of the challenge is sufficiently addressed by this source domain.
+Based on all takeaways, judge whether the conceptual challenge is sufficiently addressed by this source domain.
 
 # OUTPUT FORMAT
 
 Return a JSON object:
 
 {{
-    "domain_specific_question": "{domain_specific_question}",
-    "domain_agnostic_question": "{domain_agnostic_question}",
-    "challenge": "{question_challenge}",
+    "conceptual_challenge": "{domain_agnostic_question}",
     "source_domain": "{source_domain}",
     "target_domain": "{target_domain}",
     "fine_grained_domain": "{fine_grained_domain}",
@@ -591,15 +584,14 @@ Return a JSON object:
         {{
             "takeaway_id": "t1",
             "source_domain_formulation": "Description of the solution using {source_domain} terminology and concepts",
-            "target_domain_formulation": "Same solution translated to {fine_grained_domain} terminology and concepts",
-            "mechanism_explanation": "How this solution approach works and why it addresses the challenge",
+            "mechanism_explanation": "How this solution approach works and why it addresses the challenge. If applicable, provide examples to make it intuitive.",
             "supporting_papers": ["Paper Title 1", "Paper Title 2"]
         }}
     ],
     
     "challenge_sufficiency_assessment": {{
         "is_challenge_addressed": true,
-        "assessment_explanation": "Explain whether the domain-agnostic crux of the challenge is sufficiently solved by the source domain's approaches",
+        "assessment_explanation": "Explain whether the conceptual crux of the challenge is sufficiently solved by the source domain's approaches",
         "key_solutions_summary": "Brief summary of the main solution approaches found",
         "remaining_gaps": "What aspects of the challenge remain unaddressed (if any)"
     }}
@@ -611,7 +603,6 @@ Return a JSON object:
 - **Conservative assessment**: Only include takeaways you're confident are well-supported by evidence
 - **Dual formulations are critical**: Each takeaway must have both source-domain and target-domain versions
   - Source-domain version should use natural terminology from that field
-  - Target-domain version should map cleanly to {fine_grained_domain} concepts
 - **Focus on mechanisms**: Explain *how* solutions work, not just *what* they achieve
 - **Challenge sufficiency**: Judge based on whether the core problem is solved, not whether implementation details are provided
 - **Honest assessment**: If the source domain doesn't adequately address the challenge, say so
@@ -626,18 +617,17 @@ Good takeaway:
 {{
     "takeaway_id": "t1",
     "source_domain_formulation": "Animals maintain decaying memory traces of conditioned stimuli that persist after stimulus offset. When an unconditioned stimulus (reward) arrives later, learning occurs proportionally to the remaining trace strength, enabling associations across temporal gaps.",
-    "target_domain_formulation": "RL agents can maintain exponentially decaying eligibility traces for state-action pairs visited earlier in an episode. When a delayed reward arrives, credit is assigned to prior state-action pairs proportionally to their remaining trace values, solving the temporal credit assignment problem.",
     "mechanism_explanation": "By preserving a gradually fading representation of past events, the system maintains a 'bridge' that connects earlier decisions to later outcomes. The decay rate controls how far back credit propagates, balancing recency bias with long-term dependencies.",
     "supporting_papers": ["Temporal Conditioning in Animal Learning", "Trace Decay Mechanisms in Associative Learning"]
 }}
 
-Bad takeaway (not dual formulation):
-- Only provides domain-agnostic version without both source and target formulations
+Bad takeaway (too vague and unrelated to challenge):
+- "Systems should learn from past experiences" → Doesn't explain delayed attribution
 
 Bad takeaway (too shallow):
 - "Use memory to connect past and present" → Needs to explain *how* memory is structured and used
 
-Now analyze whether {source_domain} papers solve the challenge for {fine_grained_domain}.
+Now analyze whether {source_domain} papers solve the challenge.
 """
     
     return prompt
@@ -646,7 +636,6 @@ Now analyze whether {source_domain} papers solve the challenge for {fine_grained
 class SolutionTakeaway(BaseModel):
     takeaway_id: str
     source_domain_formulation: str
-    target_domain_formulation: str
     mechanism_explanation: str
     supporting_papers: List[str]
 
@@ -665,9 +654,7 @@ class PaperChallengeRelevance(BaseModel):
 
 
 class CrossDomainAnalysis(BaseModel):
-    domain_specific_question: str
-    domain_agnostic_question: str
-    challenge: str
+    conceptual_challenge: str
     source_domain: str
     target_domain: str
     fine_grained_domain: str
