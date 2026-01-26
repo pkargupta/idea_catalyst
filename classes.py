@@ -139,12 +139,12 @@ class ResearchProblem:
         self.all_questions: Dict[str, Question] = {}
     
     @classmethod
-    def from_initial_decomposition(cls, decomposition_json: dict, target_domain_name: str):
+    def from_initial_decomposition(cls, decomposition_json: dict, fine_grained_domain: str):
         """Create ResearchProblem from initial decomposition output."""
         problem = cls(
             problem_statement=decomposition_json["problem_statement"],
-            target_domain_name=target_domain_name,
-            fine_grained_domain=decomposition_json.get("fine_grained_domain", ""),
+            target_domain_name=decomposition_json.get("coarse_grained_domain", ""),
+            fine_grained_domain=fine_grained_domain,
             core_challenge=decomposition_json.get("core_challenge", "")
         )
         

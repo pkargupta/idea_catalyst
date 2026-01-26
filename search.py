@@ -3,7 +3,7 @@ from collections import defaultdict
 import time
 from config import API_KEY
 
-def search_semantic_scholar(query, coarse_domain, limit=5):
+def search_semantic_scholar(query, coarse_domain, limit=5, year=None):
     url = "http://api.semanticscholar.org/graph/v1/snippet/search"
     # Valid Semantic Scholar domains
     valid_domains = {
@@ -13,17 +13,13 @@ def search_semantic_scholar(query, coarse_domain, limit=5):
         "Mathematics", "Engineering", "Environmental Science",
         "Agricultural and Food Sciences", "Education", "Law", "Linguistics"
     }
-    if coarse_domain not in valid_domains:
-        query_params = {
-            "query": query,
-            "limit": limit
-        }
-    else:
-        query_params = {
-            "query": query,
-            "fieldsOfStudy": coarse_domain,
-            "limit": limit
-        }
+    query_params = {"query": query, "limit": limit}
+
+    if coarse_domain in valid_domains:
+        query_params["fieldsOfStudy"] = coarse_domain
+    if year is not None:
+        query_params["year"] = f"-{year-1}"
+
     headers = {"x-api-key": API_KEY}
     
     print(f"\t -Searching Semantic Scholar for query: {query} in domain: {coarse_domain}.")

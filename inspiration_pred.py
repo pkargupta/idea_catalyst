@@ -28,7 +28,7 @@ from prompts import (
     cross_domain_analysis_schema
 )
 from classes import ResearchProblem
-from utils import batch_llm_inference, retrieve_papers_for_question
+from utils import batch_llm_inference, retrieve_papers_for_question, convert_domain
 
 
 def decompose(args, llm, problem_statement):
@@ -43,7 +43,7 @@ def decompose(args, llm, problem_statement):
     Returns:
         ResearchProblem object containing decomposed questions
     """
-    prompt = create_initial_decomposition_prompt(problem_statement, args.target_domain)
+    prompt = create_initial_decomposition_prompt(problem_statement, args.fine_grained_domain)
     messages = [{"role": "user", "content": prompt}]
 
     decomposition_outputs = batch_llm_inference(
@@ -61,7 +61,7 @@ def decompose(args, llm, problem_statement):
     # Create ResearchProblem object
     research_problem = ResearchProblem.from_initial_decomposition(
         decomposition_output, 
-        args.target_domain
+        args.fine_grained_domain
     )
 
     print(f"Generated {len(research_problem.research_questions)} research questions:")
@@ -89,7 +89,8 @@ def explore_target_domain(args, llm, research_problem):
         papers = retrieve_papers_for_question(
             question,
             research_problem.target_domain,
-            max_papers=args.max_papers_per_query
+            max_papers=args.max_papers_per_query,
+            year=args.publication_year
         )
         research_problem.target_domain.add_question_papers(question, papers)
         print(f"    - Retrieved {len(papers)} papers")
@@ -98,7 +99,7 @@ def explore_target_domain(args, llm, research_problem):
     print("\n2b. Analyzing target domain papers (batch inference)...")
     analysis_messages_list = _prepare_target_domain_analysis_prompts(
         research_problem, 
-        args.target_domain
+        research_problem.target_domain
     )
 
     if not analysis_messages_list:
@@ -191,8 +192,9 @@ def _process_target_domain_analysis(research_problem, analysis_outputs):
         print(f"  {question.id}: {assessment} ({question.domain_specific_question})")
         
         # Log remaining challenges
-        for challenge in question.remaining_challenges:
-            research_problem.add_remaining_challenge(question, challenge)
+        remaining_challenges = analysis_output.get("remaining_challenges", [])
+        for challenge_data in remaining_challenges:
+            challenge = research_problem.add_remaining_challenge(question, challenge_data)
             print(f"\t-> New challenge: {challenge.domain_specific_question}")
 
 
@@ -223,7 +225,7 @@ def explore_external_domains(args, llm, research_problem):
     cross_domain_messages_list = _prepare_cross_domain_query_prompts(
         research_problem,
         questions_needing_cross_domain,
-        args.target_domain
+        research_problem.target_domain
     )
     
     # Batch inference for cross-domain queries
@@ -237,10 +239,10 @@ def explore_external_domains(args, llm, research_problem):
     # Process cross-domain query results and retrieve papers
     cross_domain_analysis_prompts, cross_domain_analysis_keys = (
         _process_cross_domain_queries(
+            args,
             research_problem,
             questions_needing_cross_domain,
-            cross_domain_outputs,
-            args.max_papers_per_query
+            cross_domain_outputs
         )
     )
     
@@ -280,7 +282,7 @@ def _prepare_cross_domain_query_prompts(research_problem, questions, target_doma
             domain_specific_question=question.domain_specific_question,
             domain_agnostic_question=question.domain_agnostic_question,
             question_rationale=question.rationale,
-            target_domain=target_domain,
+            target_domain=target_domain.domain_name,
             fine_grained_domain=research_problem.fine_grained_domain,
             target_domain_assessment=target_assessment
         )
@@ -313,15 +315,15 @@ def _get_target_assessment(question):
     return None
 
 
-def _process_cross_domain_queries(research_problem, questions, outputs, max_papers):
+def _process_cross_domain_queries(args, research_problem, questions, outputs):
     """
     Process cross-domain query outputs and retrieve papers.
     
     Args:
+        args: For hyperparams (year + max_papers_per_query)
         research_problem: ResearchProblem object
         questions: List of questions
         outputs: Cross-domain query outputs from LLM
-        max_papers: Maximum papers to retrieve per query
         
     Returns:
         Tuple of (analysis_prompts, analysis_keys)
@@ -356,7 +358,8 @@ def _process_cross_domain_queries(research_problem, questions, outputs, max_pape
             papers = retrieve_papers_for_question(
                 question,
                 domain,
-                max_papers=max_papers
+                max_papers=args.max_papers_per_query,
+                year=args.publication_year
             )
             
             # Prepare cross-domain analysis prompt
@@ -380,7 +383,7 @@ def _process_cross_domain_queries(research_problem, questions, outputs, max_pape
     return cross_domain_analysis_prompts, cross_domain_analysis_keys
 
 
-def save_results(problem_id, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs):
+def save_results(args, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs):
     """
     Process and display cross-domain analysis results.
     
@@ -394,8 +397,9 @@ def save_results(problem_id, research_problem, cross_domain_analysis_keys, cross
     
     # Store metadata
     questions_to_domains["research_problem"] = research_problem.problem_statement
-    questions_to_domains["domain"] = research_problem.target_domain.domain_name
+    questions_to_domains["target_domain"] = research_problem.target_domain.domain_name
     questions_to_domains["fine_grained_domain"] = research_problem.fine_grained_domain
+    questions_to_domains["source_groundtruth"] = args.ground_truth
 
     for idx, ((question, domain), output) in enumerate(
         zip(cross_domain_analysis_keys, cross_domain_analysis_outputs)
@@ -419,7 +423,7 @@ def save_results(problem_id, research_problem, cross_domain_analysis_keys, cross
         ))
 
         # Store results for sufficiently relevant and addressed questions
-        if (prop_relevant > 0.5 and 
+        if (prop_relevant > args.threshold and 
             output["challenge_sufficiency_assessment"]["is_challenge_addressed"]):
             
             question_key = question.domain_specific_question
@@ -445,8 +449,9 @@ def save_results(problem_id, research_problem, cross_domain_analysis_keys, cross
                 paper.lower(): snippets 
                 for paper, snippets in domain.fetch_question_papers(question).items()
             }
-            
+
             questions_to_domains[question_key][output["source_domain"]] = {
+                'relevant_paper_prop': prop_relevant,
                 'papers': {
                     paper: paper_info[paper.lower()] 
                     for paper in relevant_papers 
@@ -461,7 +466,7 @@ def save_results(problem_id, research_problem, cross_domain_analysis_keys, cross
     for option in ranked_options:
         print(option)
     # Save to file
-    with open(f"output_debug/{problem_id}_recommendations.json", "w") as f:
+    with open(args.output_file, "w") as f:
         json.dump(questions_to_domains, fp=f, indent=2)
 
 
@@ -483,8 +488,10 @@ def load_problems(problem_file):
         problems_list = json.load(f)
     
     problems = {
-        sample["source_text"].lower().replace(" ", "_"): {
+        f'{sample["source_id"]}_{sample["target_id"]}_{sample["source_text"].lower().replace(" ", "_")}': {
+            "source_id": sample["source_id"],
             "source_domain": sample["source_domain"],
+            "target_id": sample["target_id"],
             "target_domain": sample["target_domain"],
             "source_text": sample["source_text"],
             "target_text": sample["target_text"],
@@ -508,18 +515,29 @@ def process_single_problem(args, llm, problem_id, problem_info):
         problem_id: Unique identifier for the problem
         problem_info: Dictionary containing problem details
     """
-    problem_statement = problem_info["abstract"]
+    problem_statement = problem_info["context"]
+    args.fine_grained_domain = convert_domain(problem_info["source_domain"])
+    args.ground_truth = {"gt_domain": convert_domain(problem_info["target_domain"]),
+                         "gt_domain_insight": problem_info["target_text"],
+                         "gt_abstract": problem_info["abstract"]}
+    args.year = problem_info["publication_year"]
+    
     print(f"Problem Statement: {problem_statement}\n")
+    print(f"Fine-grained Domain: {args.fine_grained_domain}\n")
+    print(f"Ground Truth Domain: {args.ground_truth['gt_domain']}\n")
 
     # Create output file paths
-    output_file_name = f"{problem_id}_{args.max_papers_per_query}_results.json"
-    condensed_output_file_name = f"{problem_id}_{args.max_papers_per_query}_condensed.json"
+    output_file_name = f"{problem_id}_{args.max_papers_per_query}_predictions.json"
     
     args.output_file = os.path.join(args.output_dir, output_file_name)
-    args.condensed_output_file = os.path.join(args.output_dir, condensed_output_file_name)
     
     # Create output directory if needed
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+
+    # If the file already exists and skip is on:
+    if args.skip_if_exists and os.path.exists(args.output_file):
+        print(f"Output file {args.output_file} already exists, skipping...")
+        return
 
     # Execute pipeline
     print("Decomposing...")
@@ -538,7 +556,7 @@ def process_single_problem(args, llm, problem_id, problem_info):
     )
 
     print("Saving results...")
-    save_results(problem_id, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs)
+    save_results(args, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs)
 
 
 def parse_arguments():
@@ -558,12 +576,6 @@ def parse_arguments():
         help="Path to the proposal text file."
     )
     parser.add_argument(
-        "--target_domain",
-        type=str,
-        default="Computer Science",
-        help="The user's desired target domain."
-    )
-    parser.add_argument(
         "--model_name",
         type=str,
         default="Qwen/Qwen3-14B",
@@ -572,7 +584,7 @@ def parse_arguments():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="output_debug",
+        default="inspiration_pred_output",
         help="Path to output directory."
     )
     parser.add_argument(
@@ -587,7 +599,18 @@ def parse_arguments():
         default=0.7,
         help="Temperature for all LLM generation."
     )
-    
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.5,
+        help="Temperature for all LLM generation."
+    )
+    parser.add_argument(
+        "--skip_if_exists",
+        action="store_true",
+        help="Skip processing if output file already exists."
+    )
+
     return parser.parse_args()
 
 
@@ -608,7 +631,6 @@ def main():
     # Process each problem
     for problem_id, problem_info in tqdm(problems.items()):
         process_single_problem(args, llm, problem_id, problem_info)
-        1/0
 
 
 if __name__ == "__main__":

@@ -5,6 +5,184 @@ from typing import List, Dict
 from classes import Question, Domain
 from search import search_semantic_scholar, collect_snippets
 
+arxiv_domains = {
+    "cs.ai": "Artificial Intelligence",
+    "cs.ar": "Hardware Architecture",
+    "cs.cc": "Computational Complexity",
+    "cs.ce": "Computational Engineering, Finance, and Science",
+    "cs.cg": "Computational Geometry",
+    "cs.cl": "Computation and Language",
+    "cs.cr": "Cryptography and Security",
+    "cs.cv": "Computer Vision and Pattern Recognition",
+    "cs.cy": "Computers and Society",
+    "cs.db": "Databases",
+    "cs.dc": "Distributed, Parallel, and Cluster Computing",
+    "cs.dl": "Digital Libraries",
+    "cs.dm": "Discrete Mathematics",
+    "cs.ds": "Data Structures and Algorithms",
+    "cs.et": "Emerging Technologies",
+    "cs.fl": "Formal Languages and Automata Theory",
+    "cs.gl": "General Literature",
+    "cs.gr": "Graphics",
+    "cs.gt": "Computer Science and Game Theory",
+    "cs.hc": "Human-Computer Interaction",
+    "cs.ir": "Information Retrieval",
+    "cs.it": "Information Theory",
+    "cs.lg": "Machine Learning",
+    "cs.lo": "Logic in Computer Science",
+    "cs.ma": "Multiagent Systems",
+    "cs.mm": "Multimedia",
+    "cs.ms": "Mathematical Software",
+    "cs.na": "Numerical Analysis",
+    "cs.ne": "Neural and Evolutionary Computing",
+    "cs.ni": "Networking and Internet Architecture",
+    "cs.oh": "Other Computer Science",
+    "cs.os": "Operating Systems",
+    "cs.pf": "Performance",
+    "cs.pl": "Programming Languages",
+    "cs.ro": "Robotics",
+    "cs.sc": "Symbolic Computation",
+    "cs.sd": "Sound",
+    "cs.se": "Software Engineering",
+    "cs.si": "Social and Information Networks",
+    "cs.sy": "Systems and Control",
+
+    "econ.em": "Econometrics",
+    "econ.gn": "General Economics",
+    "econ.th": "Theoretical Economics",
+
+    "eess.as": "Audio and Speech Processing",
+    "eess.iv": "Image and Video Processing",
+    "eess.sp": "Signal Processing",
+    "eess.sy": "Systems and Control",
+
+    "math.ac": "Commutative Algebra",
+    "math.ag": "Algebraic Geometry",
+    "math.ap": "Analysis of PDEs",
+    "math.at": "Algebraic Topology",
+    "math.ca": "Classical Analysis and ODEs",
+    "math.co": "Combinatorics",
+    "math.ct": "Category Theory",
+    "math.cv": "Complex Variables",
+    "math.dg": "Differential Geometry",
+    "math.ds": "Dynamical Systems",
+    "math.fa": "Functional Analysis",
+    "math.gm": "General Mathematics",
+    "math.gn": "General Topology",
+    "math.gr": "Group Theory",
+    "math.gt": "Geometric Topology",
+    "math.ho": "History and Overview",
+    "math.it": "Information Theory",
+    "math.kt": "K-Theory and Homology",
+    "math.lo": "Logic",
+    "math.mg": "Metric Geometry",
+    "math.mp": "Mathematical Physics",
+    "math.na": "Numerical Analysis",
+    "math.nt": "Number Theory",
+    "math.oa": "Operator Algebras",
+    "math.oc": "Optimization and Control",
+    "math.pr": "Probability",
+    "math.qa": "Quantum Algebra",
+    "math.ra": "Rings and Algebras",
+    "math.rt": "Representation Theory",
+    "math.sg": "Symplectic Geometry",
+    "math.sp": "Spectral Theory",
+    "math.st": "Statistics Theory",
+
+    "astro-ph.co": "Cosmology and Nongalactic Astrophysics",
+    "astro-ph.ep": "Earth and Planetary Astrophysics",
+    "astro-ph.ga": "Astrophysics of Galaxies",
+    "astro-ph.he": "High Energy Astrophysical Phenomena",
+    "astro-ph.im": "Instrumentation and Methods for Astrophysics",
+    "astro-ph.sr": "Solar and Stellar Astrophysics",
+
+    "cond-mat.dis-nn": "Disordered Systems and Neural Networks",
+    "cond-mat.mes-hall": "Mesoscale and Nanoscale Physics",
+    "cond-mat.mtrl-sci": "Materials Science",
+    "cond-mat.other": "Other Condensed Matter",
+    "cond-mat.quant-gas": "Quantum Gases",
+    "cond-mat.soft": "Soft Condensed Matter",
+    "cond-mat.stat-mech": "Statistical Mechanics",
+    "cond-mat.str-el": "Strongly Correlated Electrons",
+    "cond-mat.supr-con": "Superconductivity",
+
+    "gr-qc": "General Relativity and Quantum Cosmology",
+    "hep-ex": "High Energy Physics - Experiment",
+    "hep-lat": "High Energy Physics - Lattice",
+    "hep-ph": "High Energy Physics - Phenomenology",
+    "hep-th": "High Energy Physics - Theory",
+    "math-ph": "Mathematical Physics",
+
+    "nlin.ao": "Adaptation and Self-Organizing Systems",
+    "nlin.cd": "Chaotic Dynamics",
+    "nlin.cg": "Cellular Automata and Lattice Gases",
+    "nlin.ps": "Pattern Formation and Solitons",
+    "nlin.si": "Exactly Solvable and Integrable Systems",
+
+    "nucl-ex": "Nuclear Experiment",
+    "nucl-th": "Nuclear Theory",
+
+    "physics.acc-ph": "Accelerator Physics",
+    "physics.ao-ph": "Atmospheric and Oceanic Physics",
+    "physics.app-ph": "Applied Physics",
+    "physics.atm-clus": "Atomic and Molecular Clusters",
+    "physics.atom-ph": "Atomic Physics",
+    "physics.bio-ph": "Biological Physics",
+    "physics.chem-ph": "Chemical Physics",
+    "physics.class-ph": "Classical Physics",
+    "physics.comp-ph": "Computational Physics",
+    "physics.data-an": "Data Analysis, Statistics and Probability",
+    "physics.ed-ph": "Physics Education",
+    "physics.flu-dyn": "Fluid Dynamics",
+    "physics.gen-ph": "General Physics",
+    "physics.geo-ph": "Geophysics",
+    "physics.hist-ph": "History and Philosophy of Physics",
+    "physics.ins-det": "Instrumentation and Detectors",
+    "physics.med-ph": "Medical Physics",
+    "physics.optics": "Optics",
+    "physics.plasm-ph": "Plasma Physics",
+    "physics.pop-ph": "Popular Physics",
+    "physics.soc-ph": "Physics and Society",
+    "physics.space-ph": "Space Physics",
+
+    "quant-ph": "Quantum Physics",
+
+    "q-bio.bm": "Biomolecules",
+    "q-bio.cb": "Cell Behavior",
+    "q-bio.gn": "Genomics",
+    "q-bio.mn": "Molecular Networks",
+    "q-bio.nc": "Neurons and Cognition",
+    "q-bio.ot": "Other Quantitative Biology",
+    "q-bio.pe": "Populations and Evolution",
+    "q-bio.qm": "Quantitative Methods",
+    "q-bio.sc": "Subcellular Processes",
+    "q-bio.to": "Tissues and Organs",
+
+    "q-fin.cp": "Computational Finance",
+    "q-fin.ec": "Economics",
+    "q-fin.gn": "General Finance",
+    "q-fin.mf": "Mathematical Finance",
+    "q-fin.pm": "Portfolio Management",
+    "q-fin.pr": "Pricing of Securities",
+    "q-fin.rm": "Risk Management",
+    "q-fin.st": "Statistical Finance",
+    "q-fin.tr": "Trading and Market Microstructure",
+
+    "stat.ap": "Applications",
+    "stat.co": "Computation",
+    "stat.me": "Methodology",
+    "stat.ml": "Machine Learning",
+    "stat.ot": "Other Statistics",
+    "stat.th": "Statistics Theory"
+}
+
+def convert_domain(input_name):
+    if input_name.lower() in arxiv_domains:
+        return arxiv_domains[input_name.lower()]
+    else:
+        return input_name
+
+
 def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7, max_tokens: int = 2048) -> List[dict]:
     """
     Perform batch inference with structured output.
@@ -41,7 +219,7 @@ def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temp
     return parsed_responses
 
 
-def retrieve_papers_for_question(question: Question, domain: Domain, max_papers: int = 10) -> Dict[str, List[str]]:
+def retrieve_papers_for_question(question: Question, domain: Domain, max_papers: int = 10, year=None) -> Dict[str, List[str]]:
     """
     Retrieve papers and snippets for a question in a specific domain.
     
@@ -61,7 +239,7 @@ def retrieve_papers_for_question(question: Question, domain: Domain, max_papers:
             break
         
         try:
-            response = search_semantic_scholar(query, domain.domain_name)
+            response = search_semantic_scholar(query, domain.domain_name, year=year)
             snippets = collect_snippets(response)
             
             if len(snippets) > 0:

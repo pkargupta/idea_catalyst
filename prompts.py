@@ -6,36 +6,39 @@ from typing import List, Dict, Optional
 # PROMPT 1: Initial Goal Decomposition
 # =============================================================================
 
-def create_initial_decomposition_prompt(problem_statement: str, target_domain: str) -> str:
+def create_initial_decomposition_prompt(problem_statement: str, fine_grained_domain: str) -> str:
     """
     Creates a prompt for decomposing a research problem into fundamental questions,
-    grounded in a *LLM-selected fine-grained subfield* of the target domain, and
+    grounded in a *LLM-selected coarse-grained domain* which encompasses the fine-grained domain, and
     producing BOTH:
       (1) a domain-specific version (for target-domain search), and
       (2) a domain-agnostic version (for external-domain search).
     """
 
     prompt = f"""You are an expert research strategist. Your task is to:
-(1) identify the most relevant **fine-grained subfield** within the target domain for the given research problem,
-(2) decompose the problem into fundamental bottleneck questions that are **grounded in that subfield** (not overly high-level),
+(1) identify the most relevant **coarse-grained domain** (the target domain) that encompasses the input fine-grained domain for the given research problem,
+(2) decompose the problem into fundamental bottleneck questions that are **grounded in that domain and subfield**,
 and (3) produce two parallel formulations for each question:
-   - a **domain-specific** version (optimized for searching within the identified subfield of the target domain)
+   - a **domain-specific** version (optimized for searching within the identified subfield of the coarse-grained domain)
    - a **domain-agnostic** version (optimized for discovering relevant work in external domains)
 
 # RESEARCH PROBLEM
 {problem_statement}
 
-# TARGET DOMAIN
-{target_domain}
+# FINE-GRAINED SUBFIELD
+{fine_grained_domain}
 
 # STEP 1: SUBFIELD IDENTIFICATION (MANDATORY)
-First, determine the most relevant **fine_grained_domain** (a specific subfield within {target_domain}) that the problem best fits.
-Then, all subsequent questions and queries MUST be aligned to this subfield’s typical concepts, bottlenecks, and vocabulary.
+First, determine the most relevant **coarse-grained domain** (the target domain which encompasses the subfield, {fine_grained_domain}) that the problem best fits out of the following options (ONLY SELECT THE TARGET DOMAIN FROM THIS LIST):
 
-Examples of "fine_grained_domain" (illustrative):
-- Computer Science → "Probabilistic graphical models", "Distributed systems", "Program analysis", "Human-computer interaction"
-- Biology → "Gene regulatory networks", "Protein folding", "Microbial ecology"
-- Economics → "Market design", "Behavioral decision theory", "Causal inference"
+Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geology, Psychology, Art, History, Geography, Sociology, Business, Political Science, Economics, Philosophy, Mathematics, Engineering, Environmental Science, Agricultural and Food Sciences, Education, Law, Linguistics
+
+Then, all subsequent questions and queries MUST be aligned to the domain and subfields' typical concepts, bottlenecks, and vocabulary.
+
+Examples of "coarse_grained_domain" (illustrative):
+- "Probabilistic graphical models" → Computer Science, "Distributed systems" → Computer Science, "Program analysis" → Computer Science, "Human-computer interaction" → Computer Science
+- "Gene regulatory networks" → Biology, "Protein folding" → Biology, "Microbial ecology" → Biology
+- "Market design" → Economics, "Behavioral decision theory" → Economics, "Causal inference" → Economics
 
 # STEP 2: CORE CHALLENGE
 Write a 2–3 sentence **core_challenge** that frames the fundamental difficulty *as researchers in the fine_grained_domain would*.
@@ -56,7 +59,7 @@ Aim for subfield-relevant bottlenecks that recur in the fine_grained_domain lite
 # STEP 4: QUESTION PAIRING (TWO VERSIONS OF THE SAME BOTTLENECK)
 For EACH research question, produce:
 - **domain_specific_question**: uses terminology typical of the **fine_grained_domain** (subfield-level terms are encouraged)
-- **domain_agnostic_question**: same bottleneck, but phrased in cross-disciplinary mechanistic language, avoiding {target_domain} / subfield jargon
+- **domain_agnostic_question**: same bottleneck, but phrased in cross-disciplinary mechanistic language, avoiding coarse-grained domain / subfield ({fine_grained_domain}) jargon
 
 Constraint: Both questions must refer to the *same* bottleneck.
 
@@ -73,8 +76,8 @@ Return a JSON object:
 
 {{
   "problem_statement": "{problem_statement}",
-  "target_domain": "{target_domain}",
-  "fine_grained_domain": "Specific subfield within {target_domain}",
+  "fine_grained_domain": "{fine_grained_domain}",
+  "coarse_grained_domain": "Domain selected from the provided options",
   "core_challenge": "2-3 sentence subfield-grounded summary of the fundamental challenge",
   "research_questions": [
     {{
@@ -138,11 +141,15 @@ class ResearchQuestion(BaseModel):
 
 class InitialDecomposition(BaseModel):
     problem_statement: str
-    target_domain: str
 
     fine_grained_domain: str = Field(
-        description="Most relevant specific subfield within the target_domain for this problem."
+        description="Most relevant specific subfield for this problem."
     )
+
+    coarse_grained_domain: str = Field(
+        description="Most relevant high-level domain which encompoasses the fine-grained domain for this problem."
+    )
+
     core_challenge: str = Field(
         description="2–3 sentence summary of the fundamental challenge, framed in fine_grained_domain terms."
     )
@@ -549,7 +556,7 @@ def create_cross_domain_analysis_prompt(
 # YOUR TASK
 
 ## 1. Assess Paper Relevance
-For each paper, determine if it **directly attempts to solve** the challenge (not just tangentially related).
+For each paper, determine if it **attempts to solve** the conceptual challenge (not just tangentially related).
 
 ## 2. Extract Solution Takeaways
 For papers that address the challenge, identify how they solve it. Each takeaway should:
