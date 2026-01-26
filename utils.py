@@ -233,13 +233,14 @@ def retrieve_papers_for_question(question: Question, domain: Domain, max_papers:
     """
     queries = domain.fetch_question_queries(question)
     papers = {}
+    limit = max_papers // len(queries) if len(queries) > 0 else max_papers
     
     for query in queries:
         if len(papers) >= max_papers:
             break
         
         try:
-            response = search_semantic_scholar(query, domain.domain_name, year=year)
+            response = search_semantic_scholar(query, domain.domain_name, limit=limit, year=year)
             snippets = collect_snippets(response)
             
             if len(snippets) > 0:

@@ -62,6 +62,14 @@ class Domain:
     
     def __repr__(self):
         return self.__str__()
+    
+    def __hash__(self):
+        return hash(self.domain_name)
+    
+    def __eq__(self, other):
+        if isinstance(other, Domain):
+            return self.domain_name == other.domain_name
+        return False
 
 
 @dataclass
@@ -85,6 +93,9 @@ class Question:
         
         # Sub-questions generated from target domain analysis
         self.remaining_challenges: List['Question'] = []  # Sub-questions that need cross-domain search
+
+        self.integrated_ideas: Dict[str, dict] = {}  # domain_name: integrated_idea
+        self.interdisciplinary_rankings: Optional[dict] = None
     
     def add_external_domain(self, domain: Domain):
         """Add an external domain for cross-domain search."""
@@ -103,6 +114,14 @@ class Question:
         # Need cross-domain if not addressed in target OR if there are remaining challenges
         return not self.is_addressed_in_target or len(self.remaining_challenges) > 0
     
+    def add_integrated_idea(self, domain_name: str, integrated_idea: dict):
+        """Add an integrated idea for a specific external domain."""
+        self.integrated_ideas[domain_name] = integrated_idea
+
+    def set_interdisciplinary_rankings(self, rankings: dict):
+        """Set the interdisciplinary potential rankings for this question."""
+        self.interdisciplinary_rankings = rankings
+    
     def __str__(self):
         return f"Question(id={self.id}, domain_specific={self.domain_specific_question}, domain_agnostic={self.domain_agnostic_question})"
     
@@ -114,7 +133,7 @@ class Question:
     
     def __eq__(self, other):
         if isinstance(other, Question):
-            return self.id == other.id
+            return self.__str__() == other.__str__()
         return False
 
 

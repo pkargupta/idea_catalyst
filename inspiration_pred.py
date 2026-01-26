@@ -22,10 +22,14 @@ from prompts import (
     create_target_domain_analysis_prompt,
     create_cross_domain_query_prompt,
     create_cross_domain_analysis_prompt,
+    create_target_domain_integration_prompt,
+    create_interdisciplinary_comparison_prompt,
     initial_decomposition_schema,
     target_domain_analysis_schema,
     cross_domain_queries_schema,
-    cross_domain_analysis_schema
+    cross_domain_analysis_schema,
+    target_domain_integration_schema,
+    interdisciplinary_comparison_schema
 )
 from classes import ResearchProblem
 from utils import batch_llm_inference, retrieve_papers_for_question, convert_domain
@@ -253,7 +257,7 @@ def explore_external_domains(args, llm, research_problem):
         cross_domain_analysis_prompts,
         cross_domain_analysis_schema,
         temperature=args.temp,
-        max_tokens=4096
+        max_tokens=8192
     )
 
     return cross_domain_analysis_keys, cross_domain_analysis_outputs
@@ -382,8 +386,243 @@ def _process_cross_domain_queries(args, research_problem, questions, outputs):
     
     return cross_domain_analysis_prompts, cross_domain_analysis_keys
 
+def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs):
+    """
+    Generate integrated idea fragments by combining external domain takeaways
+    with target domain state-of-the-art.
+    
+    Args:
+        args: Command-line arguments
+        llm: Language model instance
+        research_problem: ResearchProblem object
+        cross_domain_analysis_keys: List of (question, domain) tuples
+        cross_domain_analysis_outputs: List of analysis outputs
+        
+    Returns:
+        Dict mapping (question, domain) to integrated idea
+    """
+    print("\n4. Integrating cross-domain insights with target domain...")
+    
+    integration_prompts = []
+    integration_keys = []
+    
+    # Group by question to process each question's domains together
+    question_to_domains = defaultdict(list)
+    for (question, domain), output in zip(cross_domain_analysis_keys, cross_domain_analysis_outputs):
+        # Only process if challenge is addressed, the papers are sufficiently relevant, and there are takeaways
+        # Calculate relevance metrics
+        relevant_papers = [
+            paper["paper_title"] 
+            for paper in output["paper_relevance"] 
+            if paper["directly_addresses_challenge"]
+        ]
+        num_relevant = len(relevant_papers)
+        total_papers = len(output["paper_relevance"])
+        prop_relevant = num_relevant / total_papers if total_papers > 0 else 0
+        
+        if (output["challenge_sufficiency_assessment"]["is_challenge_addressed"] and 
+            prop_relevant >= args.min_rel_threshold and
+            output.get("solution_takeaways")):
+            question_to_domains[question].append((domain, output))
+    
+    # Generate integration prompts for each question-domain pair
+    for question, domain_outputs in question_to_domains.items():
+        # Get parent question's target domain papers
+        if question.parent_question:
+            target_papers = research_problem.target_domain.fetch_question_papers(
+                question.parent_question
+            )
+        else:
+            target_papers = research_problem.target_domain.fetch_question_papers(question)
+        
+        if not target_papers:
+            print(f"  Warning: No target domain papers for {question.id}, skipping integration")
+            continue
+        
+        for domain, output in domain_outputs:
+            source_papers = domain.fetch_question_papers(question)
+            
+            # Filter to only relevant papers
+            relevant_paper_titles = [
+                p["paper_title"] 
+                for p in output["paper_relevance"] 
+                if p["directly_addresses_challenge"]
+            ]
+            relevant_source_papers = {
+                title: source_papers[title]
+                for title in relevant_paper_titles
+                if title in source_papers
+            }
+            
+            if not relevant_source_papers:
+                print(f"  Warning: No relevant source papers for {question.id} from {domain.domain_name}")
+                continue
+            
+            # Create integration prompt
+            prompt = create_target_domain_integration_prompt(
+                problem_statement=research_problem.problem_statement,
+                domain_specific_question=question.domain_specific_question,
+                domain_agnostic_question=question.domain_agnostic_question,
+                question_challenge=question.rationale,
+                target_domain=research_problem.target_domain.domain_name,
+                fine_grained_domain=research_problem.fine_grained_domain,
+                target_domain_papers=target_papers,
+                source_domain=domain.domain_name,
+                source_domain_papers=relevant_source_papers,
+                source_domain_takeaways=output["solution_takeaways"]
+            )
+            
+            messages = [{"role": "user", "content": prompt}]
+            integration_prompts.append(messages)
+            integration_keys.append((question, domain))
+            
+            print(f"  Prepared integration for {question.id} + {domain.domain_name}")
+    
+    if not integration_prompts:
+        print("  No integrations to generate")
+        return {}
+    
+    # Batch inference for integrations
+    integration_outputs = batch_llm_inference(
+        llm,
+        integration_prompts,
+        target_domain_integration_schema,
+        temperature=args.temp,
+        max_tokens=4096
+    )
+    
+    # Store integrated ideas
+    integrated_ideas = {}
+    for (question, domain), output in zip(integration_keys, integration_outputs):
+        if output is None:
+            print(f"  Failed to generate integration for {question.id} + {domain.domain_name}")
+            continue
+        
+        question.add_integrated_idea(domain.domain_name, output["idea_fragment"])
+        integrated_ideas[(question, domain)] = output["idea_fragment"]
+        print(f"  Generated: {output['idea_fragment'].get('title', 'Untitled')}")
+    
+    return integrated_ideas
 
-def save_results(args, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs):
+
+def rank_interdisciplinary_potential(args, llm, research_problem, integrated_ideas):
+    """
+    Rank all integrated ideas by their interdisciplinary potential using pairwise comparisons.
+    
+    Args:
+        args: Command-line arguments
+        llm: Language model instance
+        research_problem: ResearchProblem object
+        integrated_ideas: Dict mapping (question, domain) to integrated idea
+        
+    Returns:
+        Overall rankings dict
+    """
+    print("\n5. Ranking interdisciplinary potential (pairwise comparison)...")
+    
+    if len(integrated_ideas) < 2:
+        print(f"  Insufficient ideas for ranking: {len(integrated_ideas)} idea(s), need at least 2")
+        return None
+    
+    # Prepare all ideas for comparison
+    all_ideas = []
+    idea_to_key = {}  # Maps index to (question, domain) key
+    
+    for idx, ((question, domain), idea) in enumerate(integrated_ideas.items()):
+        all_ideas.append({
+            'id': idx,
+            'question': question.domain_specific_question,
+            'source_domain': domain.domain_name,
+            'idea_fragment': idea
+        })
+        idea_to_key[idx] = (question, domain)
+    
+    print(f"  Comparing {len(all_ideas)} integrated ideas pairwise...")
+
+    # Prepare pairwise comparison prompts
+    idea_pair_keys = []
+    idea_pair_prompts = []
+
+    for idea_one_idx in range(len(all_ideas)):
+        for idea_two_idx in range(idea_one_idx + 1, len(all_ideas)):
+            idea_one = all_ideas[idea_one_idx]
+            idea_two = all_ideas[idea_two_idx]
+            idea_pair = [idea_one, idea_two]
+    
+            # Create comparison prompt
+            prompt = create_interdisciplinary_comparison_prompt(
+                problem_statement=research_problem.problem_statement,
+                target_domain=research_problem.target_domain.domain_name,
+                fine_grained_domain=research_problem.fine_grained_domain,
+                integrated_ideas=idea_pair
+            )
+            idea_pair_keys.append((idea_one_idx, idea_two_idx))
+            idea_pair_prompts.append([{"role": "user", "content": prompt}])
+    
+    # Single inference for all comparisons
+    ranking_outputs = batch_llm_inference(
+        llm,
+        idea_pair_prompts,
+        interdisciplinary_comparison_schema,
+        temperature=args.temp,
+        max_tokens=4096
+    )
+    
+    if ranking_outputs == []:
+        print("  Failed to generate rankings")
+        return None
+
+    # Tally wins/losses for each idea and metric
+    idea_rankings = defaultdict(lambda: {
+        'wins': 0,
+        'losses': 0,
+        'total_comparisons': 0,
+        'criteria_wins': defaultdict(int)
+    })
+    for (idea_one_idx, idea_two_idx), comparison_output in zip(idea_pair_keys, ranking_outputs):
+        comparison = comparison_output["pairwise_comparisons"]
+        winner_idx = comparison["overall_winner"]
+        if winner_idx == 1:
+            winning_idea = idea_one_idx
+            losing_idea = idea_two_idx
+        else:
+            winning_idea = idea_two_idx
+            losing_idea = idea_one_idx
+        
+        # Update win/loss counts
+        idea_rankings[winning_idea]['wins'] += 1
+        idea_rankings[losing_idea]['losses'] += 1
+        idea_rankings[winning_idea]['total_comparisons'] += 1
+        idea_rankings[losing_idea]['total_comparisons'] += 1
+
+        # Update criteria wins
+        for criterion, preferred_idx in comparison["criteria_preferences"].items():
+            if preferred_idx == winner_idx:
+                idea_rankings[winning_idea]['criteria_wins'][criterion] += 1
+            else:
+                idea_rankings[losing_idea]['criteria_wins'][criterion] += 1
+    
+    # Compile all ideas' info (provide idea fragments for overall and criteria-specific rankings), sorted based on overall rank
+    ranked_ideas = sorted(
+        idea_rankings.items(),
+        key=lambda x: x[1]['wins'] / x[1]['total_comparisons'] if x[1]['total_comparisons'] > 0 else 0,
+        reverse=True
+    )
+    overall_rankings = []
+    for rank, (idea_idx, ranking_info) in enumerate(ranked_ideas):
+        question, domain = idea_to_key[idea_idx]
+        overall_rankings.append({
+            'rank': rank + 1,
+            'question': question.domain_specific_question,
+            'source_domain': domain.domain_name,
+            'idea_fragment': all_ideas[idea_idx]['idea_fragment'],
+            'ranking_info': ranking_info
+        })
+
+    return overall_rankings
+
+def save_results(args, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs,
+                integrated_ideas, question_rankings):
     """
     Process and display cross-domain analysis results.
     
@@ -391,6 +630,8 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
         research_problem: ResearchProblem object
         cross_domain_analysis_keys: List of (question, domain) tuples
         cross_domain_analysis_outputs: List of analysis outputs
+        integrated_ideas: Dict mapping (question, domain) to integrated idea
+        question_rankings: Dict mapping question to rankings
     """
     options = []
     questions_to_domains = defaultdict(dict)
@@ -423,7 +664,7 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
         ))
 
         # Store results for sufficiently relevant and addressed questions
-        if (prop_relevant > args.threshold and 
+        if (prop_relevant > args.min_rel_threshold and 
             output["challenge_sufficiency_assessment"]["is_challenge_addressed"]):
             
             question_key = question.domain_specific_question
@@ -433,6 +674,9 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
                 if question.parent_question is not None:
                     questions_to_domains[question_key]["parent_question"] = (
                         question.parent_question.domain_specific_question
+                    )
+                    questions_to_domains[question_key]["parent_assessment"] = (
+                        question.parent_question.target_domain_analysis.get("overall_assessment", "")
                     )
                     target_papers = research_problem.target_domain.fetch_question_papers(
                         question.parent_question
@@ -460,6 +704,9 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
                 'takeaways': output["solution_takeaways"],
                 "remaining_challenge": output["challenge_sufficiency_assessment"]
             }
+    
+    # Add rankings to output
+    questions_to_domains["idea_rankings"] = question_rankings
     
     # Display ranked results
     ranked_options = sorted(options, key=lambda x: x[-1], reverse=True)
@@ -520,7 +767,7 @@ def process_single_problem(args, llm, problem_id, problem_info):
     args.ground_truth = {"gt_domain": convert_domain(problem_info["target_domain"]),
                          "gt_domain_insight": problem_info["target_text"],
                          "gt_abstract": problem_info["abstract"]}
-    args.year = problem_info["publication_year"]
+    args.publication_year = problem_info["publication_year"]
     
     print(f"Problem Statement: {problem_statement}\n")
     print(f"Fine-grained Domain: {args.fine_grained_domain}\n")
@@ -555,8 +802,20 @@ def process_single_problem(args, llm, problem_id, problem_info):
         args, llm, research_problem
     )
 
+    print("Integrating insights...")
+    integrated_ideas = integrate_cross_domain_insights(
+        args, llm, research_problem, 
+        cross_domain_analysis_keys, cross_domain_analysis_outputs
+    )
+
+    print("Ranking interdisciplinary potential...")
+    question_rankings = rank_interdisciplinary_potential(
+        args, llm, research_problem, integrated_ideas
+    )
+
     print("Saving results...")
-    save_results(args, research_problem, cross_domain_analysis_keys, cross_domain_analysis_outputs)
+    save_results(args, research_problem, cross_domain_analysis_keys, 
+                cross_domain_analysis_outputs, integrated_ideas, question_rankings)
 
 
 def parse_arguments():
@@ -600,10 +859,10 @@ def parse_arguments():
         help="Temperature for all LLM generation."
     )
     parser.add_argument(
-        "--threshold",
+        "--min_rel_threshold",
         type=float,
         default=0.5,
-        help="Temperature for all LLM generation."
+        help="Minimum proportion of applicable papers for the domain to be considered relevant."
     )
     parser.add_argument(
         "--skip_if_exists",

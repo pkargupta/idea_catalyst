@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+import json
 
 
 # =============================================================================
@@ -44,7 +45,7 @@ Examples of "coarse_grained_domain" (illustrative):
 Write a 2–3 sentence **core_challenge** that frames the fundamental difficulty *as researchers in the fine_grained_domain would*.
 
 # STEP 3: QUESTION DECOMPOSITION (SUBFIELD-GROUNDED)
-Produce 3–5 underlying bottleneck questions. These should be:
+Produce 2-4 underlying bottleneck questions. These should be:
 - **Atomic**: one distinct conceptual challenge
 - **More Fine-Grained**: specific enough to be useful in the identified subfield (avoid generic questions like “How do we improve performance?”)
 - **Critical**: necessary to make progress
@@ -155,9 +156,9 @@ class InitialDecomposition(BaseModel):
     )
 
     research_questions: List[ResearchQuestion] = Field(
-        min_items=3,
-        max_items=5,
-        description="3–5 subfield-grounded bottleneck questions, each with domain-specific and domain-agnostic versions.",
+        min_items=2,
+        max_items=4,
+        description="2–4 subfield-grounded bottleneck questions, each with domain-specific and domain-agnostic versions.",
     )
 
 
@@ -817,6 +818,379 @@ class TargetDomainFraming(BaseModel):
     framed_takeaways: List[FramedTakeaway]
     overall_synthesis: str
 
+# =============================================================================
+# PROMPT 6: Target Domain Integration
+# =============================================================================
+
+def create_target_domain_integration_prompt(
+    problem_statement: str,
+    domain_specific_question: str,
+    domain_agnostic_question: str,
+    question_challenge: str,
+    target_domain: str,
+    fine_grained_domain: str,
+    target_domain_papers: Dict[str, List[str]],
+    source_domain: str,
+    source_domain_papers: Dict[str, List[str]],
+    source_domain_takeaways: List[dict]
+) -> str:
+    """
+    Creates a prompt for integrating cross-domain takeaways with target domain 
+    state-of-the-art to generate a novel insight/idea fragment.
+    
+    Args:
+        problem_statement: The overall research problem
+        domain_specific_question: Question in target domain terminology
+        domain_agnostic_question: Question in general terms
+        question_challenge: The specific challenge to be solved
+        target_domain: The broad target domain
+        fine_grained_domain: The specific subfield
+        target_domain_papers: Papers from target domain with snippets
+        source_domain: The external domain providing insights
+        source_domain_papers: Relevant papers from source domain with snippets
+        source_domain_takeaways: List of takeaway dicts from source domain
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    # Format target domain papers
+    target_papers_formatted = []
+    for i, (title, snippets) in enumerate(target_domain_papers.items(), 1):
+        target_papers_formatted.append(f"\n## Target Domain Paper {i}: {title}")
+        for j, snippet in enumerate(snippets, 1):
+            target_papers_formatted.append(f"   Snippet {j}: {snippet}")
+    target_papers_text = "\n".join(target_papers_formatted) if target_papers_formatted else "No papers available."
+    
+    # Format source domain papers
+    source_papers_formatted = []
+    for i, (title, snippets) in enumerate(source_domain_papers.items(), 1):
+        source_papers_formatted.append(f"\n## Source Domain Paper {i}: {title}")
+        for j, snippet in enumerate(snippets, 1):
+            source_papers_formatted.append(f"   Snippet {j}: {snippet}")
+    source_papers_text = "\n".join(source_papers_formatted) if source_papers_formatted else "No papers available."
+    
+    # Format takeaways
+    takeaways_formatted = []
+    for i, takeaway in enumerate(source_domain_takeaways, 1):
+        takeaways_formatted.append(f"\n## Takeaway {i} (ID: {takeaway.get('takeaway_id', f't{i}')})")
+        takeaways_formatted.append(f"**Source Domain Formulation**: {takeaway.get('source_domain_formulation', 'N/A')}")
+        takeaways_formatted.append(f"**Mechanism**: {takeaway.get('mechanism_explanation', 'N/A')}")
+    takeaways_text = "\n".join(takeaways_formatted) if takeaways_formatted else "No takeaways provided."
+    
+    prompt = f"""You are an expert at interdisciplinary research integration. Your task is to synthesize insights from an external domain with the current state-of-the-art in the target domain to generate a novel, actionable research idea fragment.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# TARGET DOMAIN CONTEXT
+- **Broad Domain**: {target_domain}
+- **Fine-Grained Subfield**: {fine_grained_domain}
+
+# THE CHALLENGE TO ADDRESS
+**Domain-Specific Question**: {domain_specific_question}
+
+**Domain-Agnostic Question**: {domain_agnostic_question}
+
+**Challenge Details**: {question_challenge}
+
+# CURRENT STATE-OF-THE-ART IN {fine_grained_domain.upper()}
+{target_papers_text}
+
+# INSIGHTS FROM {source_domain.upper()}
+## Relevant Papers from {source_domain}
+{source_papers_text}
+
+## Key Takeaways from {source_domain}
+{takeaways_text}
+
+# YOUR TASK
+
+Generate a single, coherent **idea fragment** that integrates the most promising takeaways from {source_domain} with the current state-of-the-art in {fine_grained_domain}. This idea fragment should:
+
+1. **Select the most promising takeaways**: Not all takeaways need to be used. Focus on those that offer the strongest potential for integration with {fine_grained_domain}.
+
+2. **Address three key integration questions**:
+   a. **How can you integrate the takeaways from {source_domain} with current state-of-the-art ideas in {fine_grained_domain}?**
+      - Identify specific concepts, methods, or frameworks from both domains that can be combined
+      - Explain how these elements complement each other
+   
+   b. **How does this integration address the research problem and the target domain challenge?**
+      - Show how the integrated approach solves limitations in current {fine_grained_domain} methods
+      - Demonstrate how it advances progress on the domain-specific question
+   
+   c. **What are the challenges with the external domain's takeaways, and how does integration address them?**
+      - Identify potential limitations or gaps in the {source_domain} takeaways
+      - Explain how combining with {fine_grained_domain} approaches mitigates these challenges
+
+3. **Provide a concrete integration pathway**: Describe specific steps or mechanisms for combining the approaches, not just high-level aspirations.
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "idea_fragment": {{
+        "title": "Brief, descriptive title for the integrated idea (max 15 words)",
+        "core_insight": "2-3 sentence summary of the key integrated insight",
+        "integration_mechanism": {{
+            "target_domain_elements": [
+                "Specific concept/method from {fine_grained_domain} paper 1",
+                "Specific concept/method from {fine_grained_domain} paper 2"
+            ],
+            "selected_takeaways": [
+                {{
+                    "takeaway_id": "t1",
+                    "selection_rationale": "Why this takeaway was selected for integration"
+                }}
+            ],
+            "synthesis_approach": "Brief explanation (1-2 sentences) of how these elements combine with the selected_takeaways into a unified framework or method"
+        }},
+        "challenge_resolution": {{
+            "addresses_target_challenge": "How this addresses the specific {fine_grained_domain} challenge",
+            "addresses_source_limitations": "How integration with {fine_grained_domain} overcomes limitations in {source_domain} takeaways",
+            "addresses_research_problem": "How this contributes to solving the overall research problem"
+        }},
+        "concrete_realization": {{
+            "proposed_approach": "Specific technical approach, algorithm, or framework that realizes this integration (3-4 sentences)",
+            "key_innovations": [
+                "Novel aspect 1 that wouldn't exist in either domain alone",
+                "Novel aspect 2 that emerges from the integration"
+            ]
+        }}
+    }}
+}}
+
+# GUIDELINES
+
+- **Be specific**: Avoid vague statements like "combine X and Y". Explain exactly HOW they combine.
+- **Be evidence-based**: Ground your integration in the specific papers and takeaways provided.
+- **Focus on actionability**: The idea fragment should suggest a clear research direction, not just a philosophical observation.
+- **Prioritize depth over breadth**: Better to deeply integrate 1-2 takeaways than superficially mention many.
+- **Highlight emergence**: Emphasize what's novel about the integration that wouldn't exist in either domain alone.
+
+# EXAMPLE STRUCTURE (NOT TO BE COPIED)
+
+If integrating Psychology's "uncertainty estimation through probabilistic inference" with Computer Science's "RNN-based sequence modeling":
+
+Good integration:
+- Proposes specific RNN architecture modifications inspired by cognitive mechanisms
+- Explains how uncertainty estimates from psychology inform loss functions or attention mechanisms
+- Describes concrete algorithm that combines both insights
+
+Bad integration:
+- "Use psychological principles to improve RNNs" (too vague)
+- Lists psychology concepts and CS concepts side-by-side without connection
+- Proposes using one domain's method without actual integration
+
+Now generate the integrated idea fragment.
+"""
+    
+    return prompt
+
+
+class SelectedTakeaway(BaseModel):
+    takeaway_id: str
+    selection_rationale: str
+
+
+class IntegrationMechanism(BaseModel):
+    target_domain_elements: List[str] = Field(
+        min_items=1,
+        description="Specific concepts/methods from target domain papers"
+    )
+    selected_takeaways: List[SelectedTakeaway] = Field(min_items=1)
+    synthesis_approach: str = Field(
+        description="Detailed explanation of how elements combine"
+    )
+
+
+class ChallengeResolution(BaseModel):
+    addresses_target_challenge: str
+    addresses_source_limitations: str
+    addresses_research_problem: str
+
+
+class ConcreteRealization(BaseModel):
+    proposed_approach: str
+    key_innovations: List[str] = Field(min_items=1, max_items=5)
+
+
+class IdeaFragment(BaseModel):
+    title: str
+    core_insight: str
+    integration_mechanism: IntegrationMechanism
+    challenge_resolution: ChallengeResolution
+    concrete_realization: ConcreteRealization
+
+
+class TargetDomainIntegration(BaseModel):
+    idea_fragment: IdeaFragment
+
+
+# =============================================================================
+# PROMPT 7: Interdisciplinary Potential Pairwise Comparison
+# =============================================================================
+
+def create_interdisciplinary_comparison_prompt(
+    problem_statement: str,
+    target_domain: str,
+    fine_grained_domain: str,
+    integrated_ideas: List[dict]  # List of {question, source_domain, idea_fragment} dicts
+) -> str:
+    """
+    Creates a prompt for pairwise comparison of integrated ideas by their interdisciplinary potential.
+    
+    Args:
+        problem_statement: The overall research problem
+        target_domain: The broad target domain
+        fine_grained_domain: The specific subfield
+        integrated_ideas: List of dicts with 'question', 'source_domain', and 'idea_fragment'
+        
+    Returns:
+        Formatted prompt string for LLM
+    """
+    
+    # Format integrated ideas
+    ideas_formatted = []
+    for i, idea_dict in enumerate(integrated_ideas, 1):
+        question = idea_dict['question']
+        source_domain = idea_dict['source_domain']
+        idea = idea_dict['idea_fragment']
+        
+        ideas_formatted.append(f"\n## Idea {i}")
+        ideas_formatted.append(f"**Source Domain**: {source_domain}")
+        ideas_formatted.append(f"**Addresses Challenge**: {question}")
+        ideas_formatted.append(json.dumps(idea, indent=4))
+    
+    ideas_text = "\n".join(ideas_formatted) if ideas_formatted else "No ideas provided."
+    
+    prompt = f"""You are an expert in evaluating interdisciplinary research potential. Your task is to perform pairwise comparisons of integrated research ideas based on their interdisciplinary potential and rank them accordingly.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# TARGET DOMAIN CONTEXT
+- **Broad Domain**: {target_domain}
+- **Fine-Grained Subfield**: {fine_grained_domain}
+
+# INTEGRATED IDEAS TO COMPARE
+{ideas_text}
+
+# EVALUATION CRITERIA
+
+Between the two ideas, determine which idea has stronger interdisciplinary potential based on these criteria:
+
+## 1. DEPTH OF INTEGRATION
+Which idea better combines theories, models, or methods into a genuinely shared framework where components from both domains are co-designed and mutually constrain each other?
+
+**Strong integration**: Elements are truly unified in a single framework, not just sequentially applied. Domains inform each other's design. Removing one domain would fundamentally break the approach.
+
+**Weak integration**: Methods placed side-by-side or one domain's method applied to another's problem without deep synthesis.
+
+## 2. MULTI-STAGE DISCIPLINARY ENGAGEMENT
+Which idea better requires perspectives and skills from both disciplines across multiple research stages (problem definition, study design, data collection, analysis, interpretation)?
+
+**Strong engagement**: Expertise from both domains needed throughout. Both domains required to properly formulate the problem. Sustained collaboration necessary.
+
+**Weak engagement**: One discipline defines problem/approach; other consulted for single step.
+
+## 3. INNOVATION PAYOFF
+Which idea has a clearer, more plausible path to new concepts, tools, or solutions that would NOT emerge within either discipline alone?
+
+**Strong payoff**: Specific novel capability emerges ONLY from integration. Clear articulation of why cross-domain synthesis is necessary. Not achievable by incremental advances in one domain.
+
+**Weak payoff**: Outcome could likely be achieved within one discipline or novelty is unclear.
+
+## 4. NOVELTY + FEASIBILITY
+Which idea better balances groundbreaking novelty with practical feasibility?
+
+**Strong balance**: Proposes genuinely novel approach with clear, concrete implementation pathway. Innovation is ambitious but achievable.
+
+**Weak balance**: Either too incremental (low novelty) or too speculative (low feasibility).
+
+# TASK
+
+1. **Perform all pairwise comparisons**: For each pair of ideas, determine which has stronger interdisciplinary potential overall, considering all four criteria.
+
+2. **Provide justification**: For each comparison, explain your preference with specific evidence from the ideas.
+
+3. **Aggregate to rankings**: Based on pairwise preferences, produce a final ranking.
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+    "pairwise_comparisons":
+        {{
+            "idea_1_index": 1,
+            "idea_2_index": 2,
+            "preferred_idea_index": 1,
+            "preference_strength": "strong",
+            "justification": "Detailed explanation of why idea 1 is preferred over idea 2, addressing specific criteria",
+            "criteria_preferences": {{
+                "depth_of_integration": "index of idea with stronger integration",
+                "multi_stage_engagement": "index of idea with stronger engagement",
+                "innovation_payoff": "index of idea with stronger payoff",
+                "novelty_feasibility": "index of idea with better balance"
+            }},
+            "overall_winner": "index of idea with stronger interdisciplinary potential",
+            "overall_assessment": "2-3 sentence summary of why this idea has the strongest interdisciplinary potential",
+            "key_strengths": [
+                "Specific strength across criteria",
+                "Another key strength"
+            ],
+            "key_limitations": [
+                "Specific limitation",
+                "Another limitation"
+            ]
+        }}
+}}
+
+# GUIDELINES
+
+- **Be thorough**: Compare every pair of ideas (n choose 2 comparisons for n ideas)
+- **Be specific**: Justify preferences with concrete evidence from idea descriptions
+- **Consider all criteria**: Don't over-weight one dimension; balance all four
+- **Be discriminating**: Use "strong" preference when clear winner; "moderate" when closer; "weak" when very similar
+- **Focus on emergence**: Prioritize ideas where integration creates something fundamentally new
+- **Balance ambition and realism**: Novel ideas should also be feasible
+
+# PREFERENCE STRENGTH GUIDE
+
+- **strong**: Clear winner across most/all criteria
+- **moderate**: Winner on balance, but closer call
+- **weak**: Very similar; slight edge to one
+
+Now perform the pairwise comparisons and generate final rankings.
+"""
+    
+    return prompt
+
+
+class CriteriaPreferences(BaseModel):
+    depth_of_integration: int
+    multi_stage_engagement: int
+    innovation_payoff: int
+    novelty_feasibility: int
+
+
+class PairwiseComparison(BaseModel):
+    idea_1_index: int
+    idea_2_index: int
+    preferred_idea_index: int
+    preference_strength: str = Field(description="strong, moderate, or weak")
+    justification: str
+    criteria_preferences: CriteriaPreferences
+    overall_winner: int
+    overall_assessment: str
+    key_strengths: List[str] = Field(min_items=1, max_items=3)
+    key_limitations: List[str] = Field(min_items=1, max_items=3)
+
+
+class InterdisciplinaryComparison(BaseModel):
+    pairwise_comparisons: PairwiseComparison
 
 # =============================================================================
 # Schema exports for easy access
@@ -827,3 +1201,5 @@ target_domain_analysis_schema = TargetDomainAnalysis.model_json_schema()
 cross_domain_queries_schema = CrossDomainQueries.model_json_schema()
 cross_domain_analysis_schema = CrossDomainAnalysis.model_json_schema()
 target_domain_framing_schema = TargetDomainFraming.model_json_schema()
+target_domain_integration_schema = TargetDomainIntegration.model_json_schema()
+interdisciplinary_comparison_schema = InterdisciplinaryComparison.model_json_schema()
