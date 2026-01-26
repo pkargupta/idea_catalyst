@@ -888,7 +888,7 @@ def main():
     print("Model loaded.\n")
 
     # Process each problem
-    for problem_id, problem_info in tqdm(problems.items()):
+    for problem_id, problem_info in tqdm(problems.items(), total=len(problems)):
         process_single_problem(args, llm, problem_id, problem_info)
 
 
