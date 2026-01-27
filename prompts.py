@@ -436,9 +436,9 @@ Return a JSON object:
       "domain": "Valid domain from the list",
       "domain_rationale": "Why this domain likely has relevant insights for the domain-agnostic question",
       "queries": [
-        "concise query max five",
-        "another specific query",
-        "third targeted query"
+        "domain-specific query #1",
+        "domain-specific query #2",
+        "domain-specific query #3"
       ]
     }}
   ]

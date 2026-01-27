@@ -706,7 +706,13 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
             }
     
     # Add rankings to output
-    questions_to_domains["idea_rankings"] = question_rankings
+    if question_rankings is not None:
+        questions_to_domains["idea_rankings"] = question_rankings
+    else:
+        questions_to_domains["idea_rankings"] = [{'rank': idx+1,
+                                                  'question': question.domain_specific_question,
+                                                  'source_domain': domain.domain_name,
+                                                  'idea_fragment': fragment} for idx, ((question, domain), fragment) in enumerate(integrated_ideas.items())]
     
     # Display ranked results
     ranked_options = sorted(options, key=lambda x: x[-1], reverse=True)
@@ -781,10 +787,30 @@ def process_single_problem(args, llm, problem_id, problem_info):
     # Create output directory if needed
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
-    # If the file already exists and skip is on:
+    # If the file already exists and skip is on and idea rankings exist, skip processing:
     if args.skip_if_exists and os.path.exists(args.output_file):
-        print(f"Output file {args.output_file} already exists, skipping...")
-        return
+        with open(args.output_file, "r") as f:
+            existing_results = json.load(f)
+        if "idea_rankings" in existing_results and existing_results["idea_rankings"]:
+            # if the idea rankings have questions that actually should be filtered, then separate them:
+            filtered_idea_rankings = []
+            for idea in existing_results["idea_rankings"]:
+                if idea["question"] in existing_results and idea["source_domain"] in existing_results[idea["question"]]:
+                    filtered_idea_rankings.append(idea)
+            
+            if len(filtered_idea_rankings) == len(existing_results["idea_rankings"]):
+                print(f"Output file {args.output_file} already exists, skipping...")
+                return
+            else:
+                print(f"Output file {args.output_file} exists but unfiltered, filtering")
+                existing_results["unfiltered_idea_rankings"] = existing_results["idea_rankings"]
+                existing_results["idea_rankings"] = filtered_idea_rankings
+                with open(args.output_file, "w") as f:
+                    json.dump(existing_results, fp=f, indent=2)
+                return
+        
+        else:
+            print(f"Output file {args.output_file} already exists but no rankings, re-processing...")
 
     # Execute pipeline
     print("Decomposing...")

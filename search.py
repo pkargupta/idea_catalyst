@@ -1,9 +1,9 @@
 import requests
 from collections import defaultdict
 import time
-from config import API_KEY
+from config import API_KEY, BASELINE_API_KEY
 
-def search_semantic_scholar(query, coarse_domain, limit=5, year=None):
+def search_semantic_scholar(query, coarse_domain, limit=5, year=None, baseline=False):
     url = "http://api.semanticscholar.org/graph/v1/snippet/search"
     # Valid Semantic Scholar domains
     valid_domains = {
@@ -20,7 +20,10 @@ def search_semantic_scholar(query, coarse_domain, limit=5, year=None):
     if year is not None:
         query_params["year"] = f"-{year-1}"
 
-    headers = {"x-api-key": API_KEY}
+    if baseline:
+        headers = {"x-api-key": BASELINE_API_KEY}
+    else:
+        headers = {"x-api-key": API_KEY}
     
     print(f"\t -Searching Semantic Scholar for query: {query} in domain: {coarse_domain}.")
 
@@ -30,7 +33,7 @@ def search_semantic_scholar(query, coarse_domain, limit=5, year=None):
         if response.status_code == 200:
             break
         elif response.status_code == 429:
-            retry_after = int(response.headers.get('Retry-After', 5))
+            retry_after = int(response.headers.get('Retry-After', 1))
             print(f"Rate limited. Retrying after {retry_after} seconds...")
             time.sleep(retry_after)
         else:
