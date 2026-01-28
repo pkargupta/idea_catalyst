@@ -8,7 +8,7 @@ potential interdisciplinary connections and solutions.
 import os
 # Environment configuration
 os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 import json
 import argparse
@@ -810,7 +810,7 @@ def process_single_problem(args, llm, problem_id, problem_info):
     print(f"Ground Truth Domain: {args.ground_truth['gt_domain']}\n")
 
     # Create output file paths
-    output_file_name = f"{problem_id}_{args.max_papers_per_query}_predictions.json"
+    output_file_name = f"{problem_id[:30]}_{args.max_papers_per_query}_predictions.json"
     
     args.output_file = os.path.join(args.output_dir, output_file_name)
     
