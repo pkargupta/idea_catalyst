@@ -79,6 +79,8 @@ Extract and reformat the abstract's content into a structured idea fragment form
    - **Proposed Approach**: Extract the specific technical approach, algorithm, or framework described (3-4 sentences from the abstract)
    - **Key Innovations**: Identify novel aspects mentioned in the abstract that emerge from the integration (max 2-3)
 
+REMEMBER: DO NOT INCLUDE ANY STATED RESULTS OR EXPERIMENTAL "TAKEAWAYS" MENTIONED IN THE ABSTRACT. We are ONLY focused on the IDEA and METHOD described.
+
 # OUTPUT FORMAT
 
 Return a JSON object:

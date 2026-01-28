@@ -667,7 +667,7 @@ class CrossDomainAnalysis(BaseModel):
     target_domain: str
     fine_grained_domain: str
     paper_relevance: List[PaperChallengeRelevance]
-    solution_takeaways: List[SolutionTakeaway]
+    solution_takeaways: List[SolutionTakeaway] = Field(min_items=1, max_items=10)
     challenge_sufficiency_assessment: ChallengeSufficiencyAssessment
 
 

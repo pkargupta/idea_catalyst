@@ -259,6 +259,45 @@ def retrieve_papers_for_question(question: Question, domain: Domain, max_papers:
     
     return papers
 
+def retrieve_papers_for_queries(queries: List[str], domain_name: str, max_papers: int = 10, year=None, baseline=False) -> Dict[str, List[str]]:
+    """
+    Retrieve papers and snippets for a question in a specific domain.
+    
+    Args:
+        question: The research question
+        domain: The domain to search in
+        max_papers: Maximum number of unique papers to retrieve
+        
+    Returns:
+        Dictionary mapping paper titles to lists of snippets
+    """
+    papers = {}
+    limit = max_papers // len(queries) if len(queries) > 0 else max_papers
+    
+    for query in queries:
+        if len(papers) >= max_papers:
+            break
+        
+        try:
+            response = search_semantic_scholar(query, domain_name, limit=limit, year=year, baseline=baseline)
+            snippets = collect_snippets(response)
+            
+            if len(snippets) > 0:
+                # Add new papers up to the limit
+                for paper_title, snippet_list in snippets.items():
+                    if paper_title not in papers:
+                        papers[paper_title] = snippet_list
+                    else:
+                        papers[paper_title].extend(snippet_list)
+                        papers[paper_title] = list(set(papers[paper_title]))  # Ensure uniqueness
+                    
+                    if len(papers) >= max_papers:
+                        break
+        except Exception as e:
+            print(f"Error searching for query '{query}': {e}")
+    
+    return papers
+
 def prepare_output(research_problem):
     # Prepare output structure
     output = {

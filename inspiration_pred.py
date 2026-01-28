@@ -408,6 +408,9 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
     
     # Group by question to process each question's domains together
     question_to_domains = defaultdict(list)
+    most_relevant_qd_pair = None
+    highest_relevance = 0.0
+
     for (question, domain), output in zip(cross_domain_analysis_keys, cross_domain_analysis_outputs):
         # Only process if challenge is addressed, the papers are sufficiently relevant, and there are takeaways
         # Calculate relevance metrics
@@ -419,11 +422,26 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
         num_relevant = len(relevant_papers)
         total_papers = len(output["paper_relevance"])
         prop_relevant = num_relevant / total_papers if total_papers > 0 else 0
+
+        # Check to see if question-domain pair is the most relevant so far
+        if prop_relevant > highest_relevance:
+            highest_relevance = prop_relevant
+            most_relevant_qd_pair = (question, domain, output)
         
         if (output["challenge_sufficiency_assessment"]["is_challenge_addressed"] and 
             prop_relevant >= args.min_rel_threshold and
             output.get("solution_takeaways")):
             question_to_domains[question].append((domain, output))
+    
+    if len(question_to_domains) == 0:
+        print("  No question-domain pairs met integration criteria")
+        # Fallback: use most relevant pair if exists
+        if most_relevant_qd_pair is not None:
+            question, domain, output = most_relevant_qd_pair
+            print(f"  Using most relevant pair: {question.id} + {domain.domain_name} ({highest_relevance:.2f} relevant)")
+            question_to_domains[question].append((domain, output))
+        else:
+            return {}
     
     # Generate integration prompts for each question-domain pair
     for question, domain_outputs in question_to_domains.items():
@@ -649,7 +667,7 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
         relevant_papers = [
             paper["paper_title"] 
             for paper in output["paper_relevance"] 
-            if paper["directly_addresses_challenge"]
+            if (paper["directly_addresses_challenge"]) or (len(questions_to_domains) == 1)
         ]
         num_relevant = len(relevant_papers)
         total_papers = len(output["paper_relevance"])
@@ -713,6 +731,18 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
                                                   'question': question.domain_specific_question,
                                                   'source_domain': domain.domain_name,
                                                   'idea_fragment': fragment} for idx, ((question, domain), fragment) in enumerate(integrated_ideas.items())]
+
+    for idea in questions_to_domains["idea_rankings"]:
+        question_text = idea["question"]
+        source_domain = idea["source_domain"]
+        if (question_text in questions_to_domains) and (source_domain in questions_to_domains[question_text]) and ("takeaways" in questions_to_domains[question_text][source_domain]):
+            selected_takeaways = [s["takeaway_id"] for s in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]]
+            takeaway_info = {takeaway["takeaway_id"]: takeaway for takeaway in questions_to_domains[question_text][source_domain]["takeaways"] if takeaway["takeaway_id"] in selected_takeaways}
+            # Only save the selected takeaways in idea_fragment
+            for selected_takeaway in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]:
+                takeaway_id = selected_takeaway["takeaway_id"]
+                selected_takeaway["source_domain_formulation"] = takeaway_info[takeaway_id]["source_domain_formulation"]
+                selected_takeaway["mechanism_explanation"] = takeaway_info[takeaway_id]["mechanism_explanation"]
     
     # Display ranked results
     ranked_options = sorted(options, key=lambda x: x[-1], reverse=True)
@@ -791,22 +821,44 @@ def process_single_problem(args, llm, problem_id, problem_info):
     if args.skip_if_exists and os.path.exists(args.output_file):
         with open(args.output_file, "r") as f:
             existing_results = json.load(f)
-        if "idea_rankings" in existing_results and existing_results["idea_rankings"]:
+        if "idea_rankings" in existing_results and existing_results["idea_rankings"] and len(existing_results["idea_rankings"]) > 0:
+
+            # Check if source_domain_formulation and mechanism_explanation exist for selected takeaways, if not, add them
+            update_needed = False
+            for idea in existing_results["idea_rankings"]:
+                if "idea_fragment" in idea and "integration_mechanism" in idea["idea_fragment"] and "selected_takeaways" in idea["idea_fragment"]["integration_mechanism"] and "source_domain_formulation" not in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"][0]:
+                    update_needed = True
+                    question_text = idea["question"]
+                    source_domain = idea["source_domain"]
+                    if (question_text in existing_results) and (source_domain in existing_results[question_text]) and ("takeaways" in existing_results[question_text][source_domain]):
+                        selected_takeaways = [s["takeaway_id"] for s in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]]
+                        takeaway_info = {takeaway["takeaway_id"]: takeaway for takeaway in existing_results[question_text][source_domain]["takeaways"] if takeaway["takeaway_id"] in selected_takeaways}
+                        # Only save the selected takeaways in idea_fragment
+                        for selected_takeaway in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]:
+                            takeaway_id = selected_takeaway["takeaway_id"]
+                            selected_takeaway["source_domain_formulation"] = takeaway_info[takeaway_id]["source_domain_formulation"]
+                            selected_takeaway["mechanism_explanation"] = takeaway_info[takeaway_id]["mechanism_explanation"]
+            
             # if the idea rankings have questions that actually should be filtered, then separate them:
             filtered_idea_rankings = []
             for idea in existing_results["idea_rankings"]:
                 if idea["question"] in existing_results and idea["source_domain"] in existing_results[idea["question"]]:
                     filtered_idea_rankings.append(idea)
             
-            if len(filtered_idea_rankings) == len(existing_results["idea_rankings"]):
-                print(f"Output file {args.output_file} already exists, skipping...")
-                return
-            else:
+            if len(filtered_idea_rankings) != len(existing_results["idea_rankings"]):
                 print(f"Output file {args.output_file} exists but unfiltered, filtering")
                 existing_results["unfiltered_idea_rankings"] = existing_results["idea_rankings"]
                 existing_results["idea_rankings"] = filtered_idea_rankings
                 with open(args.output_file, "w") as f:
                     json.dump(existing_results, fp=f, indent=2)
+                return
+            elif update_needed:
+                print(f"Output file {args.output_file} exists but missing takeaway details, updating")
+                with open(args.output_file, "w") as f:
+                    json.dump(existing_results, fp=f, indent=2)
+                return
+            else:
+                print(f"Output file {args.output_file} already exists, skipping...")
                 return
         
         else:
