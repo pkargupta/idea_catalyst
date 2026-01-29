@@ -6464,6 +6464,122 @@
       }
     }
   },
+  "8734_21017_a_machine": {
+    "research_problem": "Complex emotion recognition, particularly through facial expressions, is a challenging cognitive task that has not yet achieved performance levels comparable to human cognition. Current methods struggle with recognizing new compound expression classes due to the need for extensive training samples, highlighting a gap in the ability to learn new concepts efficiently and effectively.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Machine Learning",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Psychology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-shot learning frameworks for facial expression recognition",
+            "Semantic decomposition techniques for compound words"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Decomposition and re-composition of compound words into constituent parts for semantic processing",
+              "mechanism_explanation": "In psychology, compound expressions are processed by decomposing them into their constituent emotions, which are then re-composed to form a holistic understanding. This mirrors the way compound words are processed in the mind, allowing for the construction of new meanings from known components.",
+              "selection_rationale": "This provides a cognitive model for how compound emotions can be understood from basic emotions, which is crucial for developing systems that recognize novel compound expressions with limited data."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Linguistics",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-shot learning (FSL) techniques for facial expression recognition",
+            "Meta-learning approaches for novel class discovery"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Linguistic analysis of compound word structures and their semantic compositionality",
+              "mechanism_explanation": "Linguistic research shows that compound words are semantically non-compositional and often require contextual interpretation. This parallels the challenge of recognizing compound emotions, which are non-compositional and context-dependent. By leveraging linguistic insights on semantic compositionality, we can improve the modeling of compound emotion classes.",
+              "selection_rationale": "This approach aligns with the challenge of recognizing compound emotions from limited training data, as both linguistic compound words and compound emotions are non-compositional and require contextual understanding."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Cognitive Science",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-shot learning (FSL) techniques, such as episode-based training and meta-learners like MAML (Model-Agnostic Meta-Learning)",
+            "Compound expression recognition frameworks, including model ensembling and end-to-end joint training of appearance and geometric features"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "The concept of emotional awareness and the cognitive processing of complex, compound emotions, as described in cognitive science literature.",
+              "mechanism_explanation": "Cognitive science highlights that humans are capable of recognizing compound emotions by integrating multiple cues (e.g., facial expressions, body language, context) and leveraging prior knowledge. This insight can guide the design of meta-learning frameworks that learn to adapt to new compound expression classes using minimal data by incorporating semantic and contextual information.",
+              "selection_rationale": "This approach directly addresses the challenge of recognizing novel compound expressions with limited samples by leveraging human-like cognitive strategies, which are not typically modeled in traditional FSL approaches."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "cognitive science",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "Continual learning methods",
+          "Knowledge distillation",
+          "Predictive Sorting Memory Replay"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "Humans are able to learn new concepts using only few examples by distilling important information from memories",
+            "mechanism_explanation": "Humans extract and retain important information from their memories to learn new concepts with minimal examples",
+            "selection_rationale": "This is relevant for integration because it addresses the challenge of learning new compound expression classes with limited training samples, which is a limitation in current machine learning methods"
+          }
+        ],
+        "synthesis_approach": "Inspired by human cognition and learning, we propose a novel continual learning method for complex facial expression recognition that can accurately recognise new compound expression classes using few training samples, by building on and retaining its knowledge of basic expression classes."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Psychology",
+        "idea": {
+          "proposed_approach": "We propose a framework that integrates few-shot learning with a semantic decomposition module. First, we use a pre-trained facial expression model to extract basic emotion features from input expressions. Then, we apply a decomposition module inspired by psychological theories of compound word processing, which splits compound expressions into their constituent basic emotions. These decomposed features are then fed into a few-shot learning module, which uses a small number of labeled samples from novel compound classes to adapt the model. This allows the system to recognize new compound expressions by re-composing the learned representations of basic emotions.",
+          "key_innovations": [
+            "Integrating psychological decomposition of compound emotions with few-shot learning to enable recognition of novel compound expressions with minimal training data.",
+            "Using semantic relationships between basic emotions to infer the meaning of compound expressions, mimicking human cognitive strategies for emotion processing."
+          ]
+        }
+      },
+      {
+        "source_domain": "Linguistics",
+        "idea": {
+          "proposed_approach": "We propose a framework that first leverages linguistic insights on compound word formation to define compound emotion classes as non-compositional units. Then, we apply few-shot learning techniques, such as meta-learning and episode-based training, to recognize these compound emotions using limited training samples. The framework will use linguistic semantic compositionality analysis to guide the model in identifying and learning the non-compositional patterns in compound emotions, similar to how multi-word expressions are processed in NLP.",
+          "key_innovations": [
+            "Integrating linguistic semantic compositionality analysis into few-shot learning for compound emotion recognition",
+            "Modeling compound emotions as non-compositional units, inspired by linguistic compound word formation"
+          ]
+        }
+      },
+      {
+        "source_domain": "Cognitive Science",
+        "idea": {
+          "proposed_approach": "We propose a meta-learning framework that integrates cognitive models of compound emotions with few-shot learning techniques. The framework uses a base model trained on a large set of basic and compound expressions, and then employs a meta-learner (e.g., MAML) to rapidly adapt to new compound expressions using only a few samples. The cognitive model provides a prior on the likely combinations of basic emotions that form compound expressions, which is used to guide the meta-learner in its adaptation process. This approach leverages both the semantic structure of compound emotions and the ability of meta-learning to generalize from limited data.",
+          "key_innovations": [
+            "Integrating cognitive models of compound emotions into few-shot learning frameworks to guide the adaptation process.",
+            "Using cognitive science insights to improve the generalization of compound expression recognition in novel, real-world settings where data is limited."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "cognitive science",
+      "idea": {
+        "proposed_approach": "We propose a novel continual learning method for complex facial expression recognition that can accurately recognise new compound expression classes using few training samples, by building on and retaining its knowledge of basic expression classes. In this work, we also use GradCAM visualisations to demonstrate the relationship between basic and compound facial expressions. Our method leverages this relationship through knowledge distillation and a novel Predictive Sorting Memory Replay, to achieve the current state-of-the-art in continual learning for complex facial expression recognition.",
+        "key_innovations": [
+          "A novel continual learning method for complex facial expression recognition that retains knowledge of basic expression classes while learning new compound classes with few samples",
+          "A novel Predictive Sorting Memory Replay mechanism to support continual learning in facial expression recognition"
+        ]
+      }
+    }
+  },
   "33860_19347_individuals_who_use_myoelectric_upper-limb_prostheses": {
     "research_problem": "Individuals using myoelectric upper-limb prostheses often face difficulties in situations where vision is overloaded or unavailable, which hinders their ability to perform daily activities. This highlights a need for improved guidance systems that can assist users in dexterous tasks without relying solely on visual input.",
     "target_domain": "Engineering",
@@ -7046,6 +7162,121 @@
           "Class-agnostic detection capability",
           "Training-free for unseen classes",
           "Avoidance of catastrophic forgetting"
+        ]
+      }
+    }
+  },
+  "8699_10270_applying_convolutional_neural_networks_to_spherical_images": {
+    "research_problem": "Applying convolutional neural networks to spherical images presents unique challenges that require careful consideration of representation methods. The need for an optimal representation for convolution operations on spherical images indicates a gap in existing approaches, which the proposed method aims to address by significantly improving performance in semantic segmentation tasks.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Computer Vision and Pattern Recognition",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Mathematics",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Spherical Convolutional Neural Networks (Spherical CNNs)",
+            "Wavelet-based Segmentation on the Sphere"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Harmonic analysis and the Fourier-Laguerre transform for spherical and radial signal processing",
+              "mechanism_explanation": "The mathematical formulation of harmonic analysis allows for the decomposition of spherical signals into frequency components, which can be used to construct equivariant filters that respect rotational symmetries. This ensures that the model remains rotationally invariant while capturing multi-scale features necessary for segmentation.",
+              "selection_rationale": "This mathematical framework provides the theoretical foundation for defining spherical convolutions and wavelet transforms that are rotationally invariant, addressing the challenge of designing effective feature extractors on spherical domains."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Physics",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Spherical Convolutional Neural Networks (Spherical CNNs)",
+            "Wavelet-based Segmentation on the Sphere"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Directional spherical wavelets for analyzing directional and anisotropic structures in spherical data",
+              "mechanism_explanation": "These wavelets can extract directional features and preserve spatial coherence, which is crucial for segmenting complex spherical images with directional structures like blood vessels in retinal images or weather patterns on Earth.",
+              "selection_rationale": "Wavelet-based methods from physics provide a robust way to handle multi-scale and directional features on the sphere, which complements the equivariance of Spherical CNNs and improves feature representation for segmentation."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Engineering",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Spherical CNNs with SO(3) equivariance for handling orientation invariance",
+            "Steerable CNNs for handling vector fields and directional features"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Directional wavelets on the sphere for localized signal analysis and feature extraction",
+              "mechanism_explanation": "Directional wavelets provide a multi-scale and multi-directional decomposition of spherical signals, which enhances the ability to capture directional structures and localize features effectively. This complements the spherical CNNs by providing a richer representation of the spatial and directional variations present in spherical images.",
+              "selection_rationale": "Wavelet transforms on the sphere are well-established in engineering for their ability to capture localized and directional features, which are crucial for semantic segmentation of complex spherical data such as panoramas or retinal images."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "geosciences",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "Applying convolutional neural networks to spherical images",
+          "Semantic segmentation"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "Millenia of work on cartographic map projections",
+            "mechanism_explanation": "These projections provide tools to define optimal representations of spherical images for the convolution operation",
+            "selection_rationale": "Because they offer a way to represent spherical images in a format suitable for convolution operations, which is a challenge in computer vision"
+          }
+        ],
+        "synthesis_approach": "We propose a representation for deep spherical image inference based on the icosahedral Snyder equal-area (ISEA) projection, a projection onto a geodesic grid."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Mathematics",
+        "idea": {
+          "proposed_approach": "We propose a novel architecture called Equivariant Spherical Wavelet CNNs (ESW-CNNs) that integrates spherical convolutions with wavelet-based feature extraction. The spherical convolutions ensure rotational equivariance, while the wavelet decomposition allows for multi-scale feature extraction on the sphere. The framework is trained using a spherical semantic segmentation dataset, with loss functions that enforce consistency across scales and rotations.",
+          "key_innovations": [
+            "Integration of equivariant spherical convolutions with wavelet-based segmentation to achieve both rotational invariance and multi-scale feature capture on spherical images.",
+            "Use of harmonic analysis and the Fourier-Laguerre transform to define rotationally invariant wavelet filters on the sphere, enhancing the model's ability to detect complex patterns in 360\u00b0 images."
+          ]
+        }
+      },
+      {
+        "source_domain": "Physics",
+        "idea": {
+          "proposed_approach": "We propose a novel framework that combines Spherical CNNs with directional wavelet transforms on the sphere. The wavelet transform will be used to pre-process spherical images, extracting directional features that are then fed into a Spherical CNN for semantic segmentation. This approach will be evaluated on datasets such as Earth maps, light probe images, and retinal images, leveraging both the rotational invariance of Spherical CNNs and the directional sensitivity of wavelets.",
+          "key_innovations": [
+            "Integration of directional spherical wavelets with Spherical CNNs for enhanced feature representation in semantic segmentation.",
+            "Use of wavelet-based preprocessing to extract directional and multi-scale features, which are then processed by Spherical CNNs to improve segmentation accuracy on spherical images."
+          ]
+        }
+      },
+      {
+        "source_domain": "Engineering",
+        "idea": {
+          "proposed_approach": "We propose a hybrid framework combining Spherical CNNs with a directional wavelet transform on the sphere. First, the spherical image is decomposed using directional wavelets, which provides a multi-scale and multi-directional representation. These wavelet coefficients are then fed into a spherical CNN, which processes the data while maintaining SO(3) equivariance. The integration of wavelet features with spherical convolutions allows the model to capture fine-grained texture and directional structures while preserving robustness to orientation changes.",
+          "key_innovations": [
+            "Integration of directional wavelet decomposition with spherical CNNs for enhanced feature extraction in spherical images.",
+            "Use of wavelet-based feature maps to guide the spherical CNN, enabling better localization and segmentation of complex structures like elongated features in retinal or weather maps."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "geosciences",
+      "idea": {
+        "proposed_approach": "We propose a representation for deep spherical image inference based on the icosahedral Snyder equal-area (ISEA) projection, a projection onto a geodesic grid. This approach provides a way to define an optimal representation of spherical images for the convolution operation. The method is designed to address the unique challenges of applying convolutional neural networks to spherical images.",
+        "key_innovations": [
+          "Use of the icosahedral Snyder equal-area (ISEA) projection for spherical image representation",
+          "Projection onto a geodesic grid for convolution operations"
         ]
       }
     }
@@ -10595,6 +10826,121 @@
         "key_innovations": [
           "CGAM avoids excessive changes in segmentation results, preventing overfitting to user clicks.",
           "The model size is independent of input image size."
+        ]
+      }
+    }
+  },
+  "8490_6534_an_action": {
+    "research_problem": "Existing approaches to action quality assessment often rely on regression algorithms that overlook the intrinsic ambiguity in score labels, which can arise from multiple judges or subjective evaluations. This highlights a need for methodologies that can effectively address the uncertainty associated with score assessments in action quality evaluation.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Computer Vision and Pattern Recognition",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Psychology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Regression-based action quality assessment",
+            "Robust reinforcement learning with uncertainty modeling"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Psychological models of ambiguity and reliability, including inter-rater reliability and subjective uncertainty perception",
+              "mechanism_explanation": "Psychological insights provide a framework for understanding how human judges perceive and assign scores under ambiguity, allowing us to model the variability and uncertainty in human-assigned labels. This can be used to train more robust regression models that do not assume fixed score labels, but rather account for their probabilistic nature.",
+              "selection_rationale": "These insights are critical for addressing the research problem of subjective score ambiguity and provide a foundation for developing models that better align with human judgment patterns."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Statistics",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Action Quality Assessment (AQA) using regression models",
+            "Uncertainty-aware reinforcement learning for robust action selection"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Bayesian estimation and robust regression techniques for handling bounded, skewed, and uncertain data",
+              "mechanism_explanation": "Bayesian methods allow for modeling of uncertainty in subjective scores by treating them as probabilistic distributions, while robust regression can handle noisy or ambiguous data by minimizing worst-case errors. This is particularly useful in AQA where scores from multiple judges or subjective evaluations can be inconsistent or skewed.",
+              "selection_rationale": "These methods directly address the problem of label ambiguity and uncertainty, which is a critical limitation of current AQA approaches."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Linguistics",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Uncertainty-aware reinforcement learning models (e.g., robust Q-values and Bayesian approaches)",
+            "Multi-label and multi-sense action recognition techniques"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Linguistic verb disambiguation using semantic frames and context-based sense clustering",
+              "mechanism_explanation": "Linguistic methods provide a structured way to model ambiguity in action labels by disambiguating verbs into distinct semantic senses, which can then be used to inform the uncertainty modeling in computer vision systems. This helps in better interpreting and handling subjective quality scores.",
+              "selection_rationale": "These methods address the ambiguity in action labels and are directly relevant to the problem of score variability due to subjective human judgments."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "Statistics Theory",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "action quality assessment (AQA)",
+          "multi-path uncertainty-aware score distributions learning (MUSDL) method"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "an instance associated with a score distribution, which describes the probability of different evaluated scores",
+            "mechanism_explanation": "This concept models an action as having a distribution over possible scores rather than a single deterministic value.",
+            "selection_rationale": "This was relevant for integration because it allows for modeling the uncertainty and variability in human-assigned scores, which is critical in AQA."
+          }
+        ],
+        "synthesis_approach": "We regard an action as an instance associated with a score distribution and devise a multi-path uncertainty-aware score distributions learning method to explore the disentangled components of a score."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Psychology",
+        "idea": {
+          "proposed_approach": "We propose a novel framework that integrates a Bayesian regression model with uncertainty-aware reinforcement learning (RL). This model is trained on a dataset of action samples annotated with scores from multiple judges, where the scores are treated as probabilistic distributions rather than fixed values. The Bayesian regression component learns the relationship between action features and quality scores while modeling the uncertainty in human annotations. The RL component then incorporates this uncertainty into a policy that maximizes expected reward under uncertainty, similar to robust RL formulations. The framework is validated using both synthetic and real-world datasets, with performance measured using metrics like Spearman rank correlation and inter-rater reliability indices.",
+          "key_innovations": [
+            "Integrating psychological models of ambiguity and reliability into the regression framework for action quality assessment.",
+            "Using Bayesian regression to model the uncertainty in human-assigned scores, which is then used to guide a robust reinforcement learning policy."
+          ]
+        }
+      },
+      {
+        "source_domain": "Statistics",
+        "idea": {
+          "proposed_approach": "We propose a Bayesian Robust Action Quality Assessment (BRAQA) framework that incorporates a Bayesian regression model to estimate the distribution of action quality scores based on multiple subjective evaluations. This model is trained on a dataset of labeled actions, where each action is annotated with scores from multiple judges. The Bayesian regression allows for uncertainty quantification in the predicted scores, while robust regression techniques are used to minimize the impact of noisy or inconsistent labels. The framework is then integrated with uncertainty-aware reinforcement learning to optimize action quality by selecting actions that minimize the worst-case uncertainty in the predicted quality scores.",
+          "key_innovations": [
+            "Integrating Bayesian regression with robust regression to model and quantify uncertainty in subjective action quality scores.",
+            "Combining the probabilistic modeling of scores with uncertainty-aware reinforcement learning to improve the robustness and reliability of action quality assessment."
+          ]
+        }
+      },
+      {
+        "source_domain": "Linguistics",
+        "idea": {
+          "proposed_approach": "We propose a framework that combines semantic frame-based verb disambiguation with a Bayesian reinforcement learning model. First, we use linguistic resources like VerbNet and WordNet to map action labels to semantic verb senses. Then, we train a Bayesian reinforcement learning agent to predict the quality score of an action while modeling the uncertainty in human judgments using a robust Q-value function. This agent learns to balance between maximizing the expected score and minimizing the variance of the predicted score, inspired by the robustness criteria in [12] and the semantic disambiguation techniques in [15].",
+          "key_innovations": [
+            "Integrating semantic verb sense disambiguation with uncertainty-aware reinforcement learning to model both label ambiguity and subjective scoring variability.",
+            "Using Bayesian reinforcement learning to directly model the distribution of quality scores, rather than relying on point estimates, thereby improving robustness and interpretability."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "Statistics Theory",
+      "idea": {
+        "proposed_approach": "We propose an uncertainty-aware score distribution learning (USDL) approach for action quality assessment (AQA). Specifically, we regard an action as an instance associated with a score distribution, which describes the probability of different evaluated scores. Moreover, under the circumstance where fine-grained score labels are available (e.g., difficulty degree of an action or multiple scores from different judges), we further devise a multi-path uncertainty-aware score distributions learning (MUSDL) method to explore the disentangled components of a score.",
+        "key_innovations": [
+          "Modeling actions with score distributions to account for uncertainty in evaluations",
+          "Developing a multi-path uncertainty-aware score distributions learning method to explore disentangled components of a score"
         ]
       }
     }

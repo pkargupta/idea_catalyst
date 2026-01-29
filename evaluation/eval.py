@@ -153,33 +153,60 @@ The ground truth demonstrates:
 EVALUATION CRITERIA
 
 Evaluate Method 1 and Method 2 relative to the ground truth benchmarks.
+When assessing each criterion, explicitly ground your judgment in the relevant fields
+of each takeaway, as described below.
 
 ### 1. RATIONALE QUALITY ALIGNMENT
-Assess whether the method’s takeaways:
-- Provide principled, meaningful reasons for selecting the source-domain insight
-- Identify genuinely useful external ideas rather than surface analogies
-- Would remain compelling if summarized at an abstract-level, like the ground truth
+Assess whether the method’s takeaways provide principled and meaningful justification
+for selecting the external-domain insight.
+
+Primarily assess using:
+- **Rationale**: Why this source-domain insight was chosen
+- **Source Formulation**: How the insight is framed in source-domain terms
+- **Mechanism**: Why and how the insight addresses the research challenge
+
+Evaluate whether:
+- The rationale reflects a non-trivial, principled connection (not a surface analogy)
+- The source-domain concept is meaningfully articulated, even if briefly
+- The mechanism explanation supports transfer *in principle*
 
 IGNORE:
-- Length of rationale
+- Length of explanations
 - Degree of elaboration
 - Narrative polish
 
 ### 2. INTEGRATION POTENTIAL ALIGNMENT
-Assess whether the method’s takeaways:
-- Identify integration pathways that are conceptually viable
-- Engage with core elements of the target domain
-- Offer research leverage beyond generic inspiration
+Assess whether the method’s takeaways have strong potential to integrate with
+core target-domain elements.
+
+Primarily assess using:
+- **Target Domain Elements**: Which concrete target-domain components are engaged
+- **Synthesis Approach**: How the elements and takeaways are combined
+- **Mechanism**: Whether the integration logic is technically coherent
+- **Source Formulation**: Whether the source insight aligns with target mechanisms
+
+Evaluate whether:
+- Integration is plausible and useful *in principle*
+- Target-domain elements are core rather than peripheral
+- The synthesis forms a coherent research direction rather than a loose pairing
 
 IGNORE:
-- Whether full implementation details are provided
+- Missing implementation details
 - Whether integration is more detailed than the ground truth
 
 ### 3. NOVELTY–RELEVANCE ALIGNMENT
-Assess whether the method’s takeaways:
-- Use source domains at an appropriate conceptual distance
-- Provide intellectually interesting connections
-- Balance surprise with substantive grounding
+Assess whether the method’s takeaways are intellectually interesting and non-obvious
+while remaining substantively grounded.
+
+Primarily assess using:
+- **Source Domain**: Conceptual distance from the target domain
+- **Source Formulation**: Whether the insight offers a genuinely new perspective
+- **Mechanism**: Whether novelty is grounded in real, feasible conceptual alignment
+
+Evaluate whether:
+- The source domain is meaningfully distinct from the target domain
+- The insight would be surprising or thought-provoking to a target-domain expert
+- Novelty is earned through substance, not metaphor alone
 
 NOTE:
 Greater domain distance is ONLY positive if relevance and integration remain strong.
