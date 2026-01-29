@@ -457,7 +457,7 @@ OUTPUT FORMAT
 
 Return a JSON object:
 
-{
+{{
   "idea_comparison": {{
     "novelty": {{
       "preferred_method": 1 | 2 | "tie",
@@ -477,7 +477,7 @@ Return a JSON object:
     "confidence": "high" | "moderate" | "low",
     "summary": "2–3 sentences summarizing which idea is overall most comparable to or better than the ground truth and why"
   }}
-}
+}}
 """
 
     return prompt
