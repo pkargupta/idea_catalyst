@@ -3,7 +3,263 @@ from litellm import completion
 from json_repair import repair_json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+from pydantic import BaseModel, Field
+from typing import List, Literal
 
+
+def create_takeaway_evaluation_prompt(
+    research_problem: str,
+    target_domain: str,
+    method_1_takeaways: List[dict],
+    method_2_takeaways: List[dict],
+    ground_truth_takeaways: dict
+) -> str:
+    """
+    Creates a prompt for evaluating and comparing cross-domain takeaways from two methods
+    relative to ground-truth takeaway quality.
+    
+    Args:
+        research_problem: The research problem being addressed
+        target_domain: The target domain (e.g., "Computer Science")
+        method_1_takeaways: List of takeaway dicts from method 1 (e.g., main method)
+        method_2_takeaways: List of takeaway dicts from method 2 (e.g., baseline)
+        ground_truth_takeaways: Ground truth takeaway dict from reference paper
+        
+    Returns:
+        Formatted prompt string
+    """
+    
+    def format_takeaway_set(takeaways_list, set_name):
+        """Format a list of takeaways for display."""
+        if not takeaways_list:
+            return f"{set_name}: No takeaways provided."
+        
+        formatted_parts = [f"\n## {set_name}\n"]
+        for idx, takeaway in enumerate(takeaways_list, 1):
+            formatted_parts.append(f"\n### Takeaway {idx}")
+            formatted_parts.append(f"**Source Domain**: {takeaway.get('source_domain', 'N/A')}")
+            
+            integration = takeaway.get('integration_mechanism', {})
+            
+            # Target domain elements
+            target_elements = integration.get('target_domain_elements', [])
+            if target_elements:
+                formatted_parts.append(f"\n**Target Domain Elements**:")
+                for elem in target_elements:
+                    formatted_parts.append(f"  - {elem}")
+            
+            # Source domain takeaways
+            source_takeaways = integration.get('source_domain_takeaways', [])
+            if source_takeaways:
+                formatted_parts.append(f"\n**Source Domain Insights**:")
+                for i, st in enumerate(source_takeaways, 1):
+                    formatted_parts.append(f"\n  Insight {i}:")
+                    formatted_parts.append(f"  - Rationale: {st.get('selection_rationale', 'N/A')}")
+                    source_form = st.get('source_domain_formulation', 'N/A')
+                    formatted_parts.append(f"  - Source Formulation: {source_form}")
+                    mech = st.get('mechanism_explanation', 'N/A')
+                    formatted_parts.append(f"  - Mechanism: {mech}")
+            
+            # Synthesis
+            synthesis = integration.get('synthesis_approach', 'N/A')
+            formatted_parts.append(f"\n**Synthesis Approach**: {synthesis}")
+            
+            formatted_parts.append("\n" + "-"*60)
+        
+        return "\n".join(formatted_parts)
+    
+    # Format all three sets of takeaways
+    method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
+    method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
+    ground_truth_text = format_takeaway_set([ground_truth_takeaways], "GROUND TRUTH TAKEAWAYS (REFERENCE)")
+    
+    prompt = f"""You are an expert evaluator assessing the quality of cross-domain research takeaways.
+Your task is to compare takeaways from two different methods that attempt to address the same research problem by drawing insights from domains outside the target domain.
+
+You will evaluate these methods relative to a **ground-truth reference takeaway** extracted from a published paper that successfully addressed the same research problem.
+
+CRITICAL FRAMING:
+The ground truth takeaway is extracted from a paper abstract and is therefore intentionally brief and underspecified.
+It should be treated as a **minimal but authoritative exemplar of a high-quality cross-domain insight**, NOT as a fully elaborated solution.
+
+You MUST NOT:
+- Penalize the ground truth for brevity or lack of implementation detail
+- Reward a method simply for being more verbose, detailed, or stylistically polished
+- Treat length, jargon density, or elaboration as indicators of higher quality
+
+You MUST:
+- Focus on **conceptual meaningfulness**, **integration potential in principle**, and **intellectual interest**
+- Judge whether a method’s takeaways are **comparable to or better than** the ground truth along these dimensions
+- Assume all takeaways could be expanded further in a full paper
+
+--------------------------------------------------
+RESEARCH PROBLEM
+{research_problem}
+
+TARGET DOMAIN
+{target_domain}
+
+--------------------------------------------------
+GROUND TRUTH TAKEAWAYS (REFERENCE)
+{ground_truth_text}
+
+--------------------------------------------------
+METHOD 1 TAKEAWAYS
+{method_1_text}
+
+--------------------------------------------------
+METHOD 2 TAKEAWAYS
+{method_2_text}
+
+--------------------------------------------------
+EVALUATION GOAL
+
+Determine which method produces takeaways that are most comparable to — or exceed — the **ground truth’s quality as a cross-domain research insight**, focusing on:
+
+1. Whether the insight is genuinely meaningful for the research problem
+2. Whether it has strong potential to integrate with core target-domain elements
+3. Whether it is intellectually interesting and non-obvious, without being forced
+
+The goal is NOT content matching. The goal is **quality alignment**.
+
+--------------------------------------------------
+GROUND TRUTH QUALITY BENCHMARKS (CONCEPTUAL)
+
+Use the ground truth to establish a conceptual quality bar along the following dimensions:
+
+### 1. Conceptual Rationale Quality
+The ground truth demonstrates:
+- A principled reason why an external-domain idea is relevant
+- A non-trivial, non-generic connection to the research problem
+- Conceptual legitimacy even when expressed briefly
+
+This concerns **meaning**, not explanation length.
+
+### 2. Integration Potential Quality
+The ground truth demonstrates:
+- Plausible integration into the target domain *in principle*
+- Alignment with core target-domain mechanisms
+- Research usefulness (i.e., the insight could inform method design or training strategy)
+
+This concerns **viability**, not implementation detail.
+
+### 3. Novelty–Relevance Balance
+The ground truth demonstrates:
+- A source domain that is meaningfully distinct from the target domain
+- An intellectually interesting or surprising connection
+- Novelty that is grounded rather than speculative
+
+--------------------------------------------------
+EVALUATION CRITERIA
+
+Evaluate Method 1 and Method 2 relative to the ground truth benchmarks.
+
+### 1. RATIONALE QUALITY ALIGNMENT
+Assess whether the method’s takeaways:
+- Provide principled, meaningful reasons for selecting the source-domain insight
+- Identify genuinely useful external ideas rather than surface analogies
+- Would remain compelling if summarized at an abstract-level, like the ground truth
+
+IGNORE:
+- Length of rationale
+- Degree of elaboration
+- Narrative polish
+
+### 2. INTEGRATION POTENTIAL ALIGNMENT
+Assess whether the method’s takeaways:
+- Identify integration pathways that are conceptually viable
+- Engage with core elements of the target domain
+- Offer research leverage beyond generic inspiration
+
+IGNORE:
+- Whether full implementation details are provided
+- Whether integration is more detailed than the ground truth
+
+### 3. NOVELTY–RELEVANCE ALIGNMENT
+Assess whether the method’s takeaways:
+- Use source domains at an appropriate conceptual distance
+- Provide intellectually interesting connections
+- Balance surprise with substantive grounding
+
+NOTE:
+Greater domain distance is ONLY positive if relevance and integration remain strong.
+
+--------------------------------------------------
+QUALITY PATTERNS TO CONSIDER
+
+- **Consistency**: Are the method’s takeaways consistently meaningful, or uneven?
+- **Groundedness**: Are claims supported by real conceptual alignment?
+- **Integration coherence**: Do the takeaways form a coherent integration story?
+- **Scope appropriateness**: Are takeaways neither trivial nor wildly speculative?
+
+--------------------------------------------------
+OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+  "method_1_evaluation": {{
+    "rationale_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "integration_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "novelty_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "consistency_assessment": "Brief assessment of quality consistency across takeaways"
+  }},
+  "method_2_evaluation": {{
+    "rationale_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "integration_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "novelty_alignment": {{
+      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
+      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+    }},
+    "consistency_assessment": "Brief assessment of quality consistency across takeaways"
+  }},
+  "comparative_analysis": {{
+    "preferred_method": 1 | 2 | "tie",
+    "summary": "2–3 sentences explaining which method’s takeaways are most comparable to or better than the ground truth in terms of meaningfulness, usefulness, and intellectual interest"
+  }},
+  "ranking": [1, 2] | [2, 1]
+}}
+
+"""
+    
+    return prompt
+
+class AlignmentScore(BaseModel):
+    score: Literal["matches_well", "partially_matches", "does_not_match"]
+    reasoning: str
+
+class MethodEvaluation(BaseModel):
+    rationale_alignment: AlignmentScore
+    integration_alignment: AlignmentScore
+    novelty_balance_alignment: AlignmentScore
+    consistency_assessment: str
+
+class ComparativeAnalysis(BaseModel):
+    preferred_method: Literal[1, 2]
+    summary: str
+
+class TakeawayEvaluation(BaseModel):
+    method_1_evaluation: MethodEvaluation
+    method_2_evaluation: MethodEvaluation
+    comparative_analysis: ComparativeAnalysis
+    ranking: List[int] = Field(min_items=2, max_items=2)
+
+takeaway_evaluation_schema = TakeawayEvaluation.model_json_schema()
 
 
 takeaway_eval_prompt = """You are an expert evaluator, evaluating how effective a research assistant is. The research assistant is tasked with identifying insightful takeaways from different domains that are meaningful for addressing the research problem. You will assess multiple of these takeaways based on the provided criteria, and rank them in order of quality.
