@@ -288,6 +288,201 @@ class TakeawayEvaluation(BaseModel):
 
 takeaway_evaluation_schema = TakeawayEvaluation.model_json_schema()
 
+def create_idea_evaluation_prompt(
+    research_problem: str,
+    target_domain: str,
+    method_1_takeaways: list,
+    method_2_takeaways: list,
+    method_1_idea: dict,
+    method_2_idea: dict,
+    ground_truth_takeaways: dict,
+    ground_truth_idea: dict
+) -> str:
+    """
+    Creates a prompt for comparing the overall cross-domain ideas from two methods
+    relative to a ground-truth idea from a reference paper.
+    """
+
+    prompt = f"""You are an expert evaluator assessing the quality of cross-domain RESEARCH IDEAS.
+Your task is to compare two proposed ideas that integrate insights from an external domain
+to address the same research problem.
+
+You will evaluate these ideas relative to a **ground-truth reference idea** extracted from
+a published paper that successfully addressed this problem.
+
+CRITICAL FRAMING:
+The ground truth idea is derived from a paper abstract and high-level description.
+It should be treated as a **minimal but authoritative benchmark** of a strong cross-domain idea,
+NOT as a fully optimized or maximally novel solution.
+
+You MUST NOT:
+- Penalize the ground truth for simplicity or limited detail
+- Reward an idea merely for complexity, technical density, or length
+- Assume that more components automatically imply better integration
+
+You MUST:
+- Focus on **novelty**, **usefulness**, and **quality of cross-domain integration**
+- Judge whether an idea is **comparable to or better than** the ground truth in principle
+- Consider how the supporting takeaways enable or justify the idea
+
+--------------------------------------------------
+RESEARCH PROBLEM
+{research_problem}
+
+TARGET DOMAIN
+{target_domain}
+
+--------------------------------------------------
+GROUND TRUTH IDEA (REFERENCE)
+
+Source Domain:
+{ground_truth_idea.get("source_domain", "N/A")}
+
+Proposed Approach:
+{ground_truth_idea.get("idea", {}).get("proposed_approach", "N/A")}
+
+Key Innovations:
+{ground_truth_idea.get("idea", {}).get("key_innovations", [])}
+
+Supporting Takeaways:
+{ground_truth_takeaways}
+
+--------------------------------------------------
+METHOD 1 IDEA
+
+Source Domain:
+{method_1_idea.get("source_domain", "N/A")}
+
+Proposed Approach:
+{method_1_idea.get("idea", {}).get("proposed_approach", "N/A")}
+
+Key Innovations:
+{method_1_idea.get("idea", {}).get("key_innovations", [])}
+
+Supporting Takeaways:
+{method_1_takeaways}
+
+--------------------------------------------------
+METHOD 2 IDEA
+
+Source Domain:
+{method_2_idea.get("source_domain", "N/A")}
+
+Proposed Approach:
+{method_2_idea.get("idea", {}).get("proposed_approach", "N/A")}
+
+Key Innovations:
+{method_2_idea.get("idea", {}).get("key_innovations", [])}
+
+Supporting Takeaways:
+{method_2_takeaways}
+
+--------------------------------------------------
+EVALUATION GOAL
+
+Determine which method proposes the **stronger overall cross-domain idea** relative to the
+ground truth, focusing on:
+
+1. Which idea is more **novel**
+2. Which idea is more **useful** for addressing the research problem
+3. Which idea demonstrates **better integration of the two domains**
+
+The goal is NOT to match the ground truth’s content, but to match or exceed its
+**conceptual quality as a cross-domain research contribution**.
+
+--------------------------------------------------
+EVALUATION CRITERIA
+
+### 1. NOVELTY
+Which idea is more novel relative to the ground truth?
+
+Assess using:
+- The **source domain** chosen and its conceptual distance from the target domain
+- The **proposed_approach**: Is the idea non-obvious to target-domain experts?
+- The **key_innovations**: Do they reflect insights unlikely to arise within the target domain alone?
+- Whether the supporting takeaways draw on **less common or underexplored external insights**
+
+Higher novelty means:
+- The idea is surprising but still credible
+- The cross-domain move feels inventive rather than expected
+
+### 2. USEFULNESS
+Which idea has greater potential to meaningfully advance solutions to the research problem?
+
+Assess using:
+- The **key_innovations**: Do they directly address gaps or limitations in the target domain?
+- The **proposed_approach**: Does it plausibly improve performance, robustness, efficiency, or understanding?
+- Whether the **source domain** offers capabilities the target domain currently lacks
+- How well the supporting takeaways justify the idea’s relevance
+
+Higher usefulness means:
+- The idea has clear research or practical payoff
+- The integration targets real shortcomings of existing approaches
+
+### 3. QUALITY OF INTEGRATION
+
+Evaluate integration depth using the following lenses:
+
+#### (a) Depth of Integration
+Which idea better combines elements from both domains into a genuinely unified framework?
+
+Strong integration:
+- Components from both domains are co-designed and mutually constraining
+- Removing either domain would fundamentally weaken or break the idea
+
+Weak integration:
+- One domain’s methods are simply applied to the other’s problem
+- Domains are combined sequentially or superficially
+
+#### (b) Multi-Stage Disciplinary Engagement
+Which idea requires expertise from both domains across multiple research stages?
+
+Strong engagement:
+- Both domains inform problem formulation, method design, and interpretation
+- Sustained cross-domain reasoning is required
+
+Weak engagement:
+- One domain dominates; the other is used for a single conceptual step
+
+#### (c) Innovation Payoff
+Which idea has a clearer, more plausible path to outcomes that would NOT emerge
+from either domain alone?
+
+Strong payoff:
+- The core capability exists only because of the integration
+- The cross-domain synthesis is necessary, not ornamental
+
+--------------------------------------------------
+OUTPUT FORMAT
+
+Return a JSON object:
+
+{
+  "idea_comparison": {{
+    "novelty": {{
+      "preferred_method": 1 | 2 | "tie",
+      "reasoning": "1–2 sentences explaining which idea is more novel relative to ground truth"
+    }},
+    "usefulness": {{
+      "preferred_method": 1 | 2 | "tie",
+      "reasoning": "1–2 sentences explaining which idea is more useful for the research problem"
+    }},
+    "integration_quality": {{
+      "preferred_method": 1 | 2 | "tie",
+      "reasoning": "1–2 sentences explaining which idea shows deeper and more meaningful integration"
+    }}
+  }},
+  "overall_assessment": {{
+    "preferred_method": 1 | 2 | "tie",
+    "confidence": "high" | "moderate" | "low",
+    "summary": "2–3 sentences summarizing which idea is overall most comparable to or better than the ground truth and why"
+  }}
+}
+"""
+
+    return prompt
+
+
 
 takeaway_eval_prompt = """You are an expert evaluator, evaluating how effective a research assistant is. The research assistant is tasked with identifying insightful takeaways from different domains that are meaningful for addressing the research problem. You will assess multiple of these takeaways based on the provided criteria, and rank them in order of quality.
 

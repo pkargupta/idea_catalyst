@@ -3608,6 +3608,126 @@
       }
     }
   },
+  "1432_30774_ai_systems": {
+    "research_problem": "Current AI systems are limited by their passive learning mechanisms, which hinder their ability to deduce knowledge independently from labeled datasets. This limitation necessitates the exploration of more intentional learning approaches that can enhance the learning capabilities of AI systems.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Artificial Intelligence",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Psychology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Active learning algorithms (e.g., farthest-first traversal, uncertainty sampling)",
+            "Reinforcement learning frameworks (e.g., policy learning, perception-action loops)"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Intrinsic motivation as a driver of exploration and curiosity in human learning",
+              "mechanism_explanation": "Intrinsic motivation, as defined in psychology, drives individuals to seek out novel and challenging experiences for their own satisfaction. This principle can be modeled in AI systems to guide exploration and learning by rewarding curiosity and novelty-seeking behaviors, rather than relying solely on external rewards.",
+              "selection_rationale": "This concept directly addresses the issue of passive learning in AI systems by introducing an internal drive for exploration, which aligns with the findings in active learning that show better performance when agents are allowed to select information based on perceived usefulness."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Biology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Active learning techniques (e.g., ALiPy, farthest-first traversal for deep active learning)",
+            "Synthetic intentionality (SI) frameworks that use pattern recognition to generate and refine intentional sequences"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Biological plasticity mechanisms, such as neuromodulated spike-timing-dependent plasticity (STDP) and extremal dynamics with negative feedback",
+              "mechanism_explanation": "These mechanisms allow biological systems to dynamically adjust synaptic strengths based on experience, promoting both stability and flexibility. This can be modeled to allow AI systems to dynamically adapt their learning strategies based on feedback and environmental context.",
+              "selection_rationale": "These mechanisms provide a biologically plausible way to implement adaptive learning, which is critical for overcoming the limitations of passive learning in AI systems."
+            },
+            {
+              "source_domain_formulation": "Self-organized memory engrams with selective utilization and long-term storage",
+              "mechanism_explanation": "This biological mechanism allows organisms to retain long-term memories while selectively utilizing them in new contexts. This can be used to model memory consolidation and retrieval in AI systems, ensuring that learned knowledge remains relevant and accessible.",
+              "selection_rationale": "It addresses the problem of catastrophic forgetting and ensures that AI systems can retain and reuse prior knowledge in new situations, similar to how biological systems manage memory."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Education",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Active Learning (AL)",
+            "Self-Supervised Learning (SSL)"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Self-directed learning in education emphasizes learner autonomy, goal-setting, and reflective practice.",
+              "mechanism_explanation": "Incorporating self-directed learning principles into AI systems can enable them to set their own learning goals, reflect on their progress, and adapt their learning strategies based on feedback, much like human learners.",
+              "selection_rationale": "This aligns with the research problem of passive learning mechanisms in AI and supports the development of autonomous, goal-oriented AI systems that can improve without constant human supervision."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "developmental biology",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "AI systems with passive learning mechanisms (e.g., supervised learning)",
+          "Interactive agent capable of learning and storing task-agnostic visual representation"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "The toddler's learning procedure",
+            "mechanism_explanation": "A highly intentional learning system via action, where learning occurs through exploration and interaction with objects",
+            "selection_rationale": "This approach enables the system to deduce knowledge independently, addressing the limitations of passive learning mechanisms in AI systems"
+          }
+        ],
+        "synthesis_approach": "Inspired by the toddler's learning procedure, we design an interactive agent that can learn and store task-agnostic visual representation while exploring and interacting with objects in the virtual environment."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Psychology",
+        "idea": {
+          "proposed_approach": "We propose a hybrid AI framework that integrates active learning with intrinsic motivation models. This system will use uncertainty sampling and farthest-first traversal to select data points for labeling, while simultaneously incorporating a curiosity-driven reward function inspired by psychological theories of intrinsic motivation. The reward function will be based on the information gap theory, encouraging the AI to explore areas of the input space where its knowledge is sparse or uncertain. This framework will be tested on a robotic navigation task, where the AI must learn to navigate an unknown environment with minimal human intervention.",
+          "key_innovations": [
+            "A novel intrinsic motivation model that dynamically adjusts exploration based on the AI\u2019s uncertainty and curiosity levels.",
+            "A unified framework that integrates active learning and intrinsic motivation to enable self-directed, goal-oriented exploration in AI systems."
+          ]
+        }
+      },
+      {
+        "source_domain": "Biology",
+        "idea": {
+          "proposed_approach": "We propose a framework called 'Synthetic Intentional Active Learning with Plasticity (SIAP)', which integrates active learning strategies (e.g., farthest-first traversal for deep active learning) with synthetic intentionality and biologically inspired plasticity mechanisms. The system would dynamically generate intentional sequences, query the most informative data points using active learning, and refine its internal representations through mechanisms inspired by STDP and extremal dynamics. This would allow the system to explore its environment, learn from experience, and adapt its behavior in response to new challenges.",
+          "key_innovations": [
+            "Integration of synthetic intentionality with active learning to enable intentional, adaptive exploration of the environment.",
+            "Incorporation of biologically inspired plasticity mechanisms to dynamically adjust learning strategies and prevent catastrophic forgetting."
+          ]
+        }
+      },
+      {
+        "source_domain": "Education",
+        "idea": {
+          "proposed_approach": "We propose a hybrid AI learning framework that combines active learning strategies (e.g., uncertainty sampling, farthest-first traversal) with self-directed learning mechanisms inspired by education theory. This framework will allow AI systems to autonomously identify informative data points for labeling, set learning objectives based on performance feedback, and iteratively refine their models through self-assessment and reflection. The system will be evaluated on real-world datasets and benchmarked against traditional passive learning methods.",
+          "key_innovations": [
+            "Integrating self-directed learning principles from education into AI learning systems, enabling autonomous goal-setting and reflection.",
+            "Developing an active learning framework that allows AI systems to dynamically query data and adapt their learning strategies based on self-assessment, reducing the need for labeled data."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "developmental biology",
+      "idea": {
+        "proposed_approach": "An interactive agent is designed to learn and store task-agnostic visual representation while exploring and interacting with objects in the virtual environment. This approach is inspired by the toddler's learning procedure, which emphasizes intentional learning through action. The agent's ability to learn in this manner allows it to generalize across various vision tasks without relying solely on labeled datasets.",
+        "key_innovations": [
+          "An interactive agent that learns and stores task-agnostic visual representation through exploration and interaction",
+          "A learning mechanism inspired by the toddler's intentional learning procedure, enabling independent knowledge deduction"
+        ]
+      }
+    }
+  },
   "33920_28325_artificial_intelligence_explanations_of_system_behavior_and_reasoning": {
     "research_problem": "The effectiveness of AI system explanations can be influenced by various contextual and subjective factors, which presents a significant challenge for fostering trust and understanding in human-AI collaboration. Additionally, there is a need to bridge the gap between algorithmic explanation generation and effective communication of those explanations to users, considering important components such as perception, semantics, intent, and user context.",
     "target_domain": "Computer Science",
@@ -4921,6 +5041,126 @@
         "key_innovations": [
           "Framing the inverse problem as an end-to-end optimization problem using a deep neural network",
           "Training a stimulus encoder to invert a known forward model to produce patient-specific stimuli"
+        ]
+      }
+    }
+  },
+  "14577_7598_feature_fusion_of_multispectral_images": {
+    "research_problem": "Previous studies on feature fusion using convolutional neural networks have shown sensitivity to image misalignment, leading to performance degradation due to deficiencies in local-range feature interaction. This highlights the need for improved methods that can effectively model global feature interaction and capture complementary information across modalities to enhance object feature discriminability.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Computer Vision and Pattern Recognition",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Neuroscience",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Cross-attention mechanisms for multimodal fusion",
+            "Global-to-local feature interaction modules in vision transformers"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Cross-modal interactions in early sensory cortices are modulated by statistical relationships and expectations of multisensory input.",
+              "mechanism_explanation": "This suggests that neural systems dynamically adjust the influence of one modality on another based on their expected relationship, which can be modeled as attention weights in deep learning. This mechanism helps suppress irrelevant features and enhance relevant ones during fusion.",
+              "selection_rationale": "This neuroscience insight provides a biological basis for designing attention mechanisms that can adaptively modulate the interaction between modalities, addressing the issue of misalignment and noise sensitivity in feature fusion."
+            },
+            {
+              "source_domain_formulation": "Cross-modal predictive processing involves top-down inhibition to suppress irrelevant information and enhance relevant features based on context.",
+              "mechanism_explanation": "This offers a framework for designing feedback mechanisms in neural networks that can suppress noise or misaligned features from one modality while enhancing relevant features from another, improving discriminability and robustness.",
+              "selection_rationale": "This aligns well with the need in computer vision to handle noisy or misaligned features by leveraging top-down contextual information, which is critical in multimodal feature fusion."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Engineering",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Cross-modal attention mechanisms from multimodal fusion networks",
+            "Global-to-local feature interaction modules from vision transformers"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Adaptive alignment techniques from visual alignment robot systems using inverse kinematic solutions and feedback loops for misalignment correction",
+              "mechanism_explanation": "Engineering-based alignment methods provide a robust framework for compensating misalignment errors, ensuring accurate spatial alignment of modalities before feature fusion. These methods can be adapted to dynamically adjust feature alignment during fusion, especially in scenarios where misalignment is prevalent.",
+              "selection_rationale": "These methods are particularly effective in real-world scenarios where misalignment is common and can severely degrade model performance, making them ideal for integration with computer vision techniques."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Psychology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Cross-modal attention mechanisms (e.g., from Husformer and MulT)",
+            "Global-to-local feature interaction modules (e.g., from MPViT)"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Cross-modal correspondence and contextual cueing effects in psychology",
+              "mechanism_explanation": "Psychological studies show that cross-modal correspondences (e.g., pitch and elevation) and contextual cues significantly influence perception, suggesting that integrating such principles into feature fusion can improve the robustness of object recognition, especially when modalities are misaligned or noisy.",
+              "selection_rationale": "These principles directly address the problem of misalignment sensitivity by leveraging natural contextual and cross-modal relationships that are known to enhance perceptual integration and discrimination in humans."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "cognitive science",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "Feature fusion of multispectral images",
+          "Convolutional neural networks for feature fusion"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "The human process of reviewing knowledge",
+            "mechanism_explanation": "Inspired by this process, an iterative interaction mechanism is proposed to share parameters among block-wise multimodal transformers",
+            "selection_rationale": "This was relevant for integration because it helps reduce model complexity and computation cost by sharing parameters across blocks"
+          }
+        ],
+        "synthesis_approach": "Inspired by the human process of reviewing knowledge, an iterative interaction mechanism is proposed to share parameters among block-wise multimodal transformers, reducing model complexity and computation cost."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Neuroscience",
+        "idea": {
+          "proposed_approach": "We propose a novel multimodal fusion network that incorporates neuroscience-inspired cross-modal attention and vision transformer-based global-local feature interaction. The network features a cross-attention module that dynamically weights the influence of each modality based on contextual and statistical expectations, inspired by predictive processing in the brain. This is combined with a global-to-local interaction module that enhances feature discriminability by integrating both long-range and local contextual information. The framework is trained using a combination of cross-modal alignment losses and adversarial training to ensure robustness to misalignment and noise.",
+          "key_innovations": [
+            "Integration of neuroscience-based attention mechanisms with vision transformer architectures to model cross-modal interactions dynamically based on contextual expectations.",
+            "Development of a global-to-local feature interaction module that enhances robustness to misalignment by combining long-range and local contextual features, inspired by the brain's hierarchical integration of multisensory information."
+          ]
+        }
+      },
+      {
+        "source_domain": "Engineering",
+        "idea": {
+          "proposed_approach": "The proposed approach introduces an adaptive cross-modal alignment module that dynamically adjusts feature alignment using inverse kinematic feedback loops inspired by visual alignment robot systems. This module is integrated into a vision transformer-based architecture, where cross-modal attention mechanisms are enhanced with global-to-local feature interaction. During training, the alignment module continuously corrects misalignment in feature spaces by learning from feedback loops, ensuring that both global and local features are effectively fused.",
+          "key_innovations": [
+            "Dynamic misalignment correction in feature spaces using engineering-inspired feedback loops for real-time alignment adjustment.",
+            "Integration of global-to-local interaction with cross-modal attention to enhance discriminability of multimodal features, even under misalignment conditions."
+          ]
+        }
+      },
+      {
+        "source_domain": "Psychology",
+        "idea": {
+          "proposed_approach": "We propose a novel architecture called Context-Aware Crossmodal Fusion Network (CACFNet) that integrates cross-modal attention from Husformer with global-to-local feature interaction from MPViT. CACFNet first employs cross-modal attention to extract complementary features across modalities, then uses a global-to-local feature interaction module to refine these features by incorporating contextual information. Additionally, we introduce a context-aware weighting mechanism inspired by psychological studies of contextual cueing and cross-modal correspondence, which dynamically adjusts feature weights based on modality alignment and contextual similarity.",
+          "key_innovations": [
+            "Integrating psychological cross-modal correspondence principles into feature fusion to enhance robustness under misalignment and noise.",
+            "Developing a context-aware weighting mechanism that dynamically adjusts feature contributions based on contextual and cross-modal relationships, improving discriminability and reducing overfitting to noisy or misaligned modalities."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "cognitive science",
+      "idea": {
+        "proposed_approach": "A novel feature fusion framework of dual cross-attention transformers is proposed to model global feature interaction and capture complementary information across modalities simultaneously. This framework enhances the discriminability of object features through the query-guided cross-attention mechanism. However, stacking multiple transformer blocks for feature enhancement incurs a large number of parameters and high spatial complexity. To handle this, inspired by the human process of reviewing knowledge, an iterative interaction mechanism is proposed to share parameters among block-wise multimodal transformers, reducing model complexity and computation cost.",
+        "key_innovations": [
+          "A dual cross-attention transformer framework for global feature interaction and cross-modal complementarity",
+          "An iterative interaction mechanism inspired by the human process of reviewing knowledge to reduce model complexity and computation cost"
         ]
       }
     }
@@ -10941,6 +11181,128 @@
         "key_innovations": [
           "Modeling actions with score distributions to account for uncertainty in evaluations",
           "Developing a multi-path uncertainty-aware score distributions learning method to explore disentangled components of a score"
+        ]
+      }
+    }
+  },
+  "7485_328_learning_and_recognizing_objects_from_few_images": {
+    "research_problem": "Learning from just a few images remains a tremendous challenge for existing mainstream deep neural networks. There is a need to enrich the target domain with insufficient image data by leveraging abundant images from a rich source domain.",
+    "target_domain": "Computer Science",
+    "target_domain_subfield": "Machine Learning",
+    "predicted_takeaways": [
+      {
+        "source_domain": "Psychology",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-Shot Adversarial Domain Adaptation (Paper 1)",
+            "Meta-Learning Deep Visual Words (Paper 13)"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Shape bias in object learning (Paper 3)",
+              "mechanism_explanation": "The shape bias refers to the tendency of humans to generalize new object names based on shape rather than other properties. Incorporating this bias into domain adaptation can help models focus on domain-invariant features that are more likely to be shared across domains, such as shape and structure, thus improving alignment in the feature space.",
+              "selection_rationale": "This cognitive bias is well-documented and directly addresses the challenge of generalizing from limited data, which aligns with the few-shot learning problem in domain adaptation."
+            },
+            {
+              "source_domain_formulation": "Attention mechanisms in visual processing (Paper 13)",
+              "mechanism_explanation": "Attention in human vision allows selective processing of relevant features in a scene, improving efficiency and accuracy. Integrating attention mechanisms into domain adaptation models can help prioritize the most relevant features for alignment, reducing the impact of domain-specific noise.",
+              "selection_rationale": "Attention mechanisms are critical for handling complex and noisy data, and aligning with how humans process visual information can lead to more robust and interpretable models."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Art",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-Shot Adversarial Domain Adaptation",
+            "Data Augmentation with Nonlinear Transformations"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Morphological abstraction and simplification of visual elements in art",
+              "mechanism_explanation": "Artistic abstraction reduces visual complexity and emphasizes key features, enabling models to focus on high-level semantic patterns rather than detailed textures. This can be used to generate synthetic variations of images that preserve core visual semantics while reducing overfitting.",
+              "selection_rationale": "This approach aligns with the challenge of learning from few images, as it enables the generation of more meaningful, semantically rich variations of images, which can help bridge the gap between source and target domains."
+            }
+          ]
+        }
+      },
+      {
+        "source_domain": "Environmental Science",
+        "integration_mechanism": {
+          "target_domain_elements": [
+            "Few-Shot Adversarial Domain Adaptation (FSA-Domain Adaptation)",
+            "Generative Adversarial Networks (GANs) for Image Synthesis"
+          ],
+          "source_domain_takeaways": [
+            {
+              "source_domain_formulation": "Spatial interpolation methods such as inverse distance weighting (IDW) and ordinary kriging (OK) that model environmental phenomena based on spatial correlations.",
+              "mechanism_explanation": "These methods can be used to generate plausible environmental data at unlabeled target locations by exploiting spatial patterns from the source domain. This helps in enriching the target domain with realistic data that can be used for training deep learning models.",
+              "selection_rationale": "Environmental spatial interpolation provides a principled way to extrapolate spatially correlated data, which is crucial for generating realistic target domain samples when only a few labeled examples are available."
+            }
+          ]
+        }
+      }
+    ],
+    "gt_takeaways": {
+      "source_domain": "cognitive science",
+      "integration_mechanism": {
+        "target_domain_elements": [
+          "Deep neural networks",
+          "Image-to-image translation",
+          "Adversarial training"
+        ],
+        "source_domain_takeaways": [
+          {
+            "takeaway_id": "t1",
+            "source_domain_formulation": "Analogical reasoning in the human mind",
+            "mechanism_explanation": "It allows humans to learn and recognize objects effectively from limited image samples",
+            "selection_rationale": "This principle is leveraged to translate images from a rich source domain to enrich a target domain with insufficient image data"
+          }
+        ],
+        "synthesis_approach": "Inspired by analogical reasoning in the human mind, a feasible strategy is to translate the abundant images of a rich source domain to enrich the relevant yet different target domain with insufficient image data."
+      }
+    },
+    "proposed_ideas": [
+      {
+        "source_domain": "Psychology",
+        "idea": {
+          "proposed_approach": "We propose a novel framework that combines adversarial domain adaptation with attention-based feature selection, guided by cognitive biases like shape bias. The framework uses a meta-learning approach to adapt models to new target domains using only a few labeled examples. A shape-based attention module is introduced to emphasize features that align with human cognitive patterns, and the adversarial loss ensures that the model learns domain-invariant representations. This is tested on visual object recognition tasks with limited target data.",
+          "key_innovations": [
+            "Integration of shape bias from psychology into the domain adaptation process to guide feature alignment.",
+            "Use of attention mechanisms to focus on domain-invariant features, inspired by human visual attention."
+          ]
+        }
+      },
+      {
+        "source_domain": "Art",
+        "idea": {
+          "proposed_approach": "Our approach combines few-shot adversarial domain adaptation with a generative abstraction module inspired by artistic morphological simplification. The module takes source domain images and applies transformations that mimic artistic abstraction\u2014such as simplifying shapes, reducing detail, and emphasizing structure\u2014to generate semantically relevant variations. These variations are then used to train the domain adaptation framework, which aligns the feature distributions of the source and target domains. The adversarial component ensures that the model learns domain-invariant features, while the artistic abstraction provides meaningful data augmentation for few-shot learning.",
+          "key_innovations": [
+            "Introducing artistic morphological abstraction as a data augmentation technique to enhance few-shot domain adaptation.",
+            "Combining adversarial learning with generative art-inspired transformations to bridge domain gaps in low-data scenarios."
+          ]
+        }
+      },
+      {
+        "source_domain": "Environmental Science",
+        "idea": {
+          "proposed_approach": "We propose a framework that uses spatial interpolation methods to generate synthetic images of environmental conditions (e.g., soil erosion, vegetation distribution) at unlabeled target locations. These images are then fed into a few-shot adversarial domain adaptation framework that aligns the source and target domains using adversarial learning. Additionally, we incorporate GAN-based generative models to refine the synthetic images, ensuring they are realistic and semantically consistent with the target domain.",
+          "key_innovations": [
+            "Integrating environmental spatial interpolation with few-shot domain adaptation to generate realistic target domain data from limited samples.",
+            "Using GANs to refine synthetic images generated by spatial interpolation, ensuring high fidelity and domain alignment."
+          ]
+        }
+      }
+    ],
+    "gt_idea": {
+      "source_domain": "cognitive science",
+      "idea": {
+        "proposed_approach": "We propose a novel, effective multi-adversarial framework (MA) based on part-global learning, which accomplishes one-shot cross-domain image-to-image translation. In specific, we first devise a part-global adversarial training scheme to provide an efficient way for feature extraction and prevent discriminators being over-fitted. Then, a multi-adversarial mechanism is employed to enhance the image-to-image translation ability to unearth the high-level semantic representation. Moreover, a balanced adversarial loss function is presented, which aims to balance the training data and stabilize the training process.",
+        "key_innovations": [
+          "A part-global adversarial training scheme for efficient feature extraction and preventing over-fitting of discriminators",
+          "A multi-adversarial mechanism to enhance image-to-image translation and unearth high-level semantic representation",
+          "A balanced adversarial loss function to stabilize the training process and balance training data"
         ]
       }
     }
