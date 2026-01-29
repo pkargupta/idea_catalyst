@@ -13,6 +13,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 import json
 import argparse
 from collections import defaultdict
+import glob
 
 from tqdm import tqdm
 from vllm import LLM
@@ -817,10 +818,21 @@ def process_single_problem(args, llm, problem_id, problem_info):
     # Create output directory if needed
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
+    # Collect already complete samples
+    search_pattern = os.path.join(args.output_dir, '*.json')
+    json_files = glob.glob(search_pattern)
+    all_ids = {"_".join(os.path.basename(key).split("_", maxsplit=2)[:2]):key for key in json_files}
+    curr_id = f"{problem_info['source_id']}_{problem_info['target_id']}"
+
     # If the file already exists and skip is on and idea rankings exist, skip processing:
-    if args.skip_if_exists and os.path.exists(args.output_file):
+    if args.skip_if_exists and curr_id in all_ids:
+        print(f"Before: {args.output_file}")
+        args.output_file = all_ids[curr_id]
+        print(f"After: {args.output_file}")
+
         with open(args.output_file, "r") as f:
             existing_results = json.load(f)
+        
         if "idea_rankings" in existing_results and existing_results["idea_rankings"] and len(existing_results["idea_rankings"]) > 0:
 
             # Check if source_domain_formulation and mechanism_explanation exist for selected takeaways, if not, add them

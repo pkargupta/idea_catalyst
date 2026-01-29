@@ -8,7 +8,7 @@ the full pipeline in inspiration_pred.py.
 import os
 # Environment configuration
 os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 import json
 import argparse
@@ -348,12 +348,102 @@ def baseline_direct_ideation(args, llm, problem_id, problem_info):
 
 
 # =============================================================================
-# BASELINE 2: Retrieve-Suggest-Retrieve-Ideate
+# BASELINE 2: Target-Retrieve-Source-Retrieve-Ideate
 # =============================================================================
 
-def create_domain_suggestion_prompt(
+# =============================================================================
+# PROMPT 1: Initial Goal Decomposition
+# =============================================================================
+
+def create_target_queries(problem_statement: str, fine_grained_domain: str) -> str:
+    """
+    Creates a prompt for decomposing a research problem into a coarse-grained target domain and queries.
+    """
+
+    prompt = f"""You are an expert research strategist. Your task is to:
+(1) identify the most relevant **coarse-grained domain** (the target domain) that encompasses the input fine-grained domain for the given research problem,
+(2) identify 3-5 word queries to search for papers in the coarse-grained/fine-grained domains.
+
+# RESEARCH PROBLEM
+{problem_statement}
+
+# FINE-GRAINED SUBFIELD
+{fine_grained_domain}
+
+# STEP 1: SUBFIELD IDENTIFICATION (MANDATORY)
+First, determine the most relevant **coarse-grained domain** (the target domain which encompasses the subfield, {fine_grained_domain}) that the problem best fits out of the following options (ONLY SELECT THE TARGET DOMAIN FROM THIS LIST):
+
+Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geology, Psychology, Art, History, Geography, Sociology, Business, Political Science, Economics, Philosophy, Mathematics, Engineering, Environmental Science, Agricultural and Food Sciences, Education, Law, Linguistics
+
+Then, all subsequent questions and queries MUST be aligned to the domain and subfields' typical concepts, bottlenecks, and vocabulary.
+
+Examples of "coarse_grained_domain" (illustrative):
+- "Probabilistic graphical models" → Computer Science, "Distributed systems" → Computer Science, "Program analysis" → Computer Science, "Human-computer interaction" → Computer Science
+- "Gene regulatory networks" → Biology, "Protein folding" → Biology, "Microbial ecology" → Biology
+- "Market design" → Economics, "Behavioral decision theory" → Economics, "Causal inference" → Economics
+
+# STEP 2: SEARCH QUERIES (SUBFIELD-ALIGNED)
+Provide:
+- 3–5 **target_domain_queries** (max 5 words each)
+  - MUST strongly reflect **fine_grained_domain** vocabulary and canonical phrases
+  - SHOULD be specific enough to appear in titles/abstracts in that subfield
+  - SHOULD vary across theoretical/methodological/evaluative angles
+
+# OUTPUT FORMAT
+
+Return a JSON object:
+
+{{
+  "problem_statement": "{problem_statement}",
+  "fine_grained_domain": "{fine_grained_domain}",
+  "coarse_grained_domain": "Domain selected from the provided options",
+  "target_domain_queries": [
+    "max five words",
+    "subfield canonical phrase",
+    "title/abstract likely terms"
+    ]
+}}
+
+# EXAMPLE (BRIEF)
+
+If fine_grained_domain = "Probabilistic graphical models":
+- target_domain_queries might include "identifiability", "latent variables", or "structure learning" (<=5 words)
+
+Ensure every query is clearly aligned with the chosen fine_grained_domain. Now output your JSON object following the above instructions.
+"""
+    return prompt
+
+class InitialDecomposition(BaseModel):
+    problem_statement: str
+
+    fine_grained_domain: str = Field(
+        description="Most relevant specific subfield for this problem."
+    )
+
+    coarse_grained_domain: str = Field(
+        description="Most relevant high-level domain which encompoasses the fine-grained domain for this problem."
+    )
+
+    core_challenge: str = Field(
+        description="2–3 sentence summary of the fundamental challenge, framed in fine_grained_domain terms."
+    )
+
+    target_domain_queries: List[str] = Field(
+        min_items=3,
+        max_items=5,
+        description=(
+            "Search queries (<=5 words) for within-target-domain search. Must strongly reflect "
+            "fine_grained_domain vocabulary and canonical phrases likely in titles/abstracts."
+        ),
+    )
+
+target_domain_queries_schema = InitialDecomposition.model_json_schema()
+
+
+def create_source_domain_suggestion_prompt(
     problem_statement: str,
-    source_domain: str,
+    target_domain: str,
+    target_domain_subfield: str,
     target_domain_papers: Dict[str, List[str]]
 ) -> str:
     """
@@ -361,36 +451,39 @@ def create_domain_suggestion_prompt(
     
     Args:
         problem_statement: The research problem
-        source_domain: The source/fine-grained domain
+        target_domain: The target/fine-grained domain
         target_domain_papers: Papers retrieved from target domain
         
     Returns:
         Formatted prompt string
     """
     
-    # Format papers
-    papers_formatted = []
-    for i, (title, snippets) in enumerate(target_domain_papers.items(), 1):
-        papers_formatted.append(f"\n## Paper {i}: {title}")
-        for j, snippet in enumerate(snippets[:3], 1):  # Limit to 3 snippets per paper
-            papers_formatted.append(f"   Snippet {j}: {snippet}")
-    
-    papers_text = "\n".join(papers_formatted) if papers_formatted else "No papers retrieved."
-    
     prompt = f"""You are an expert at identifying interdisciplinary research connections. Your task is to suggest external research domains that might provide valuable insights for addressing a research problem.
 
 # RESEARCH PROBLEM
 {problem_statement}
 
-# SOURCE DOMAIN
-{source_domain}
+# TARGET DOMAIN
+{target_domain}
 
-# PAPERS FROM {source_domain.upper()}
-{papers_text}
+# TARGET DOMAIN SUBFIELD
+{target_domain_subfield}
+
+# PAPERS FROM {target_domain.upper()}
+"""
+    if target_domain_papers:
+        for i, (title, snippets) in enumerate(target_domain_papers.items(), 1):
+            prompt += f"\n## Paper {i}: {title}\n"
+            for j, snippet in enumerate(snippets[:3], 1):  # Limit to 3 snippets per paper
+                prompt += f"   Snippet {j}: {snippet}\n"
+    else:
+        prompt += "No papers retrieved.\n"
+    
+    prompt += f"""
 
 # YOUR TASK
 
-Based on the research problem and the current state of research in {source_domain} (as shown by the papers above), suggest 1-3 external research domains that might provide relevant insights, methods, or analogies.
+Based on the research problem and the current state of research in {target_domain} and {target_domain_subfield} (as shown by the papers above), suggest 1-3 external research domains that might provide relevant insights, methods, or analogies.
 
 For each suggested domain:
 1. Explain why this domain is relevant
@@ -422,12 +515,25 @@ Now suggest external domains.
     
     return prompt
 
+class SuggestedDomain(BaseModel):
+    domain: str
+    rationale: str
+    queries: List[str] = Field(min_items=3, max_items=5)
 
-def create_retrieve_retrieve_ideation_prompt(
+
+class DomainSuggestions(BaseModel):
+    suggested_domains: List[SuggestedDomain] = Field(min_items=1, max_items=3)
+
+domain_suggestions_schema = DomainSuggestions.model_json_schema()
+
+
+def create_target_source_ideation_prompt(
     problem_statement: str,
+    target_domain: str,
+    target_domain_subfield: str,
     source_domain: str,
     target_domain_papers: Dict[str, List[str]],
-    external_domains_papers: Dict[str, Dict[str, List[str]]]
+    source_domain_papers: Dict[str, Dict[str, List[str]]]
 ) -> str:
     """
     Creates a prompt for ideation after retrieving from both target and external domains.
@@ -442,50 +548,52 @@ def create_retrieve_retrieve_ideation_prompt(
         Formatted prompt string
     """
     
-    # Format target domain papers
-    target_papers_formatted = []
-    for i, (title, snippets) in enumerate(target_domain_papers.items(), 1):
-        target_papers_formatted.append(f"\n## Target Domain Paper {i}: {title}")
-        for j, snippet in enumerate(snippets[:3], 1):
-            target_papers_formatted.append(f"   Snippet {j}: {snippet}")
-    target_papers_text = "\n".join(target_papers_formatted) if target_papers_formatted else "No papers."
-    
-    # Format external domain papers
-    external_papers_formatted = []
-    for domain_name, papers in external_domains_papers.items():
-        external_papers_formatted.append(f"\n### Papers from {domain_name}")
-        for i, (title, snippets) in enumerate(papers.items(), 1):
-            external_papers_formatted.append(f"\n## Paper {i}: {title}")
-            for j, snippet in enumerate(snippets[:3], 1):
-                external_papers_formatted.append(f"   Snippet {j}: {snippet}")
-    external_papers_text = "\n".join(external_papers_formatted) if external_papers_formatted else "No papers."
-    
     prompt = f"""You are an expert at interdisciplinary research synthesis. Your task is to develop a novel research idea by integrating insights from multiple research domains.
 
 # RESEARCH PROBLEM
 {problem_statement}
 
-# TARGET DOMAIN (SOURCE)
+# TARGET DOMAIN
+{target_domain}
+
+## TARGET DOMAIN SUBFIELD
+{target_domain_subfield}
+
+# PAPERS FROM {target_domain.upper()}
+"""
+    if target_domain_papers:
+        for i, (title, snippets) in enumerate(target_domain_papers.items(), 1):
+            prompt += f"\n## Paper {i}: {title}\n"
+            for j, snippet in enumerate(snippets[:3], 1):  # Limit to 3 snippets per paper
+                prompt += f"   Snippet {j}: {snippet}\n"
+    else:
+        prompt += "No papers retrieved.\n"
+    
+    prompt += f"""
+
+# SOURCE DOMAIN
 {source_domain}
 
 # PAPERS FROM {source_domain.upper()}
-{target_papers_text}
-
-# PAPERS FROM EXTERNAL DOMAINS
-{external_papers_text}
+"""
+    if source_domain_papers:
+        for i, (title, snippets) in enumerate(source_domain_papers.items(), 1):
+            prompt += f"\n## Paper {i}: {title}\n"
+            for j, snippet in enumerate(snippets[:3], 1):  # Limit to 3 snippets per paper
+                prompt += f"   Snippet {j}: {snippet}\n"
+    else:
+        prompt += "No papers retrieved.\n"
+    
+    prompt += f"""
 
 # YOUR TASK
 
-Based on the research problem and the papers from both the target domain and external domains, develop a concrete, novel research idea that addresses the problem.
+Based on the research problem and the papers from both the target and source domains, develop a concrete, novel research idea that addresses the problem.
 
 Your idea should:
-1. Integrate insights from the target domain with relevant insights from external domains
-2. Explain how different domains' concepts/methods combine
+1. Integrate insights from the {target_domain} with relevant insights from {source_domain}
+2. Explain how the two different domains' concepts/methods combine
 3. Propose a specific, actionable research approach
-
-# OUTPUT FORMAT
-
-Return a JSON object:
 
 {{
     "idea_fragment": {{
@@ -493,14 +601,13 @@ Return a JSON object:
         "core_insight": "2-3 sentence summary of the key integrated insight",
         "integration_mechanism": {{
             "target_domain_elements": [
-                "Specific concept/method from {source_domain} papers",
-                "Another specific concept/method from {source_domain} papers"
+                "Specific concept/method from {target_domain}",
+                "Another specific concept/method from {target_domain}"
             ],
             "source_domain_takeaways": [
                 {{
-                    "takeaway_id": "t1",
-                    "source_domain_formulation": "Description of concept/method from external domain papers",
-                    "mechanism_explanation": "How this approach works and addresses the challenge",
+                    "source_domain_formulation": "Description of concept/method from identified domain",
+                    "mechanism_explanation": "How this approach works and why it addresses the challenge",
                     "selection_rationale": "Why this was selected for integration"
                 }}
             ],
@@ -509,15 +616,13 @@ Return a JSON object:
         "concrete_realization": {{
             "proposed_approach": "Specific technical approach, algorithm, or framework (3-4 sentences)",
             "key_innovations": [
-                "Novel aspect 1 that emerges from integration",
-                "Novel aspect 2 that emerges from integration"
+                "Novel aspect 1",
+                "Novel aspect 2"
             ]
         }}
     }}
 }}
-
 # GUIDELINES
-
 - Ground your idea in the specific papers provided
 - Be concrete about how insights from different domains integrate
 - Focus on actionable research directions
@@ -529,25 +634,12 @@ Now develop your research idea.
     return prompt
 
 
-class SuggestedDomain(BaseModel):
-    domain: str
-    rationale: str
-    queries: List[str] = Field(min_items=3, max_items=5)
-
-
-class DomainSuggestions(BaseModel):
-    suggested_domains: List[SuggestedDomain] = Field(min_items=1, max_items=3)
-
-
 class RetrieveRetrieveIdeation(BaseModel):
     idea_fragment: IdeaFragment
 
+target_source_ideation_schema = RetrieveRetrieveIdeation.model_json_schema()
 
-domain_suggestions_schema = DomainSuggestions.model_json_schema()
-retrieve_retrieve_ideation_schema = RetrieveRetrieveIdeation.model_json_schema()
-
-
-def baseline_retrieve_suggest_retrieve_ideate(args, llm, problem_id, problem_info):
+def baseline_dual_retrieval(args, llm, problem_id, problem_info):
     """
     Baseline 2: Retrieve in target → suggest external domains → retrieve in external → ideate.
     
@@ -561,128 +653,110 @@ def baseline_retrieve_suggest_retrieve_ideate(args, llm, problem_id, problem_inf
         Dict with generated idea
     """
     problem_statement = problem_info["context"]
-    source_domain = convert_domain(problem_info["source_domain"])
+    target_domain_subfield = convert_domain(problem_info["target_domain"])
     
-    print(f"\nBaseline 2: Retrieve-Suggest-Retrieve-Ideate")
     print(f"Problem: {problem_id}")
-    print(f"Source Domain: {source_domain}")
+    print(f"Target Domain Subfield: {target_domain_subfield}")
     
-    # Step 1: Retrieve from target domain
-    print("\n  Step 1: Retrieving from target domain...")
-    target_domain_obj = Domain(domain_name=source_domain)
+    # Create prompt for target domain and queries
+    prompt = create_target_queries(problem_statement, target_domain_subfield)
+    messages = [{"role": "user", "content": prompt}]
     
-    # Create simple queries from problem statement (first 5 key terms)
-    words = problem_statement.split()
-    simple_queries = [" ".join(words[i:i+3]) for i in range(0, min(15, len(words)), 3)][:5]
+    # Generate target domain/queries
+    target_domain_outputs = batch_llm_inference(
+        llm,
+        [messages],
+        target_domain_queries_schema,
+        temperature=args.temp,
+        max_tokens=1024
+    )
     
-    # Retrieve papers using simple queries
-    all_target_papers = {}
-    for query in simple_queries[:3]:  # Use first 3 queries
-        papers = retrieve_papers_for_queries(
-            queries=[query],  # We'll pass query directly
-            domain=target_domain_obj,
-            max_papers=args.max_papers_per_query // 3,
+    target_domain = target_domain_outputs[0]["coarse_grained_domain"]
+    target_domain_queries = target_domain_outputs[0]["target_domain_queries"]
+    
+    if (target_domain is None) or (len(target_domain_queries) == 0):
+        print(f"  Failed to generate target domain and queries for {problem_id}")
+        return None
+    
+    # Retrieve papers from target domain
+    target_domain_papers = retrieve_papers_for_queries(
+            queries=target_domain_queries,
+            domain_name=target_domain,
+            max_papers=args.max_papers_per_query,
             year=problem_info["publication_year"],
             baseline=True
         )
-        all_target_papers.update(papers)
     
-    print(f"    Retrieved {len(all_target_papers)} papers from {source_domain}")
-    
-    # Step 2: Suggest external domains
-    print("\n  Step 2: Suggesting external domains...")
-    suggestion_prompt = create_domain_suggestion_prompt(
-        problem_statement, source_domain, all_target_papers
-    )
-    suggestion_messages = [{"role": "user", "content": suggestion_prompt}]
-    
-    suggestion_outputs = batch_llm_inference(
+    # Identify potential source domains and relevant queries
+    suggest_source_prompt = create_source_domain_suggestion_prompt(problem_statement, target_domain, target_domain_subfield, target_domain_papers)
+    source_suggestion_msg = [{"role": "user", "content": suggest_source_prompt}]
+
+    # Generate source domain/queries
+    source_domain_outputs = batch_llm_inference(
         llm,
-        [suggestion_messages],
+        [source_suggestion_msg],
         domain_suggestions_schema,
         temperature=args.temp,
         max_tokens=2048
     )
+
+    suggested_source_domains = source_domain_outputs[0]["suggested_domains"]
     
-    suggestion_output = suggestion_outputs[0]
-    
-    if suggestion_output is None:
-        print(f"    Failed to suggest domains for {problem_id}")
+    if (suggested_source_domains is None) or (len(suggested_source_domains) == 0):
+        print(f"  Failed to generate potential domains for {problem_id}")
         return None
-    
-    suggested_domains = suggestion_output['suggested_domains']
-    print(f"    Suggested {len(suggested_domains)} external domains:")
-    for domain in suggested_domains:
-        print(f"      - {domain['domain']}")
-    
-    # Step 3: Retrieve from external domains
-    print("\n  Step 3: Retrieving from external domains...")
-    external_domains_papers = {}
-    
-    for suggested_domain in suggested_domains:
-        domain_name = suggested_domain['domain']
-        queries = suggested_domain['queries']
+
+    # Retrieve papers from identified domains
+    source_ideation_prompts = []
+    domain2papers = {}
+    for domain_info in suggested_source_domains:
+        domain_name = domain_info['domain']
+        queries = domain_info['queries']
         
-        external_domain_obj = Domain(domain_name=domain_name)
-        domain_papers = {}
+        papers = retrieve_papers_for_queries(
+            queries=queries,
+            domain_name=domain_name,
+            max_papers=args.max_papers_per_query,
+            year=problem_info["publication_year"],
+            baseline=True
+        )
+
+        domain2papers[domain_name] = papers
         
-        for query in queries[:3]:  # Use first 3 queries
-            papers = retrieve_papers_for_queries(
-                queries=[query],
-                domain=external_domain_obj,
-                max_papers=args.max_papers_per_query // len(suggested_domains) // 3,
-                year=problem_info["publication_year"],
-                baseline=True
-            )
-            domain_papers.update(papers)
-        
-        external_domains_papers[domain_name] = domain_papers
-        print(f"    Retrieved {len(domain_papers)} papers from {domain_name}")
+        prompt = create_target_source_ideation_prompt(problem_statement=problem_statement, target_domain=target_domain, 
+                                                      target_domain_subfield=target_domain_subfield, source_domain=domain_name, 
+                                                      target_domain_papers=target_domain_papers, source_domain_papers=papers)
+        messages = [{"role": "user", "content": prompt}]
+        source_ideation_prompts.append(messages)
     
-    # Step 4: Ideate
-    print("\n  Step 4: Generating integrated idea...")
-    ideation_prompt = create_retrieve_retrieve_ideation_prompt(
-        problem_statement,
-        source_domain,
-        all_target_papers,
-        external_domains_papers
-    )
-    ideation_messages = [{"role": "user", "content": ideation_prompt}]
-    
+    # Generate ideas
     ideation_outputs = batch_llm_inference(
         llm,
-        [ideation_messages],
-        retrieve_retrieve_ideation_schema,
+        source_ideation_prompts,
+        target_source_ideation_schema,
         temperature=args.temp,
-        max_tokens=4096
+        max_tokens=8192
     )
+
+    final_outputs = []
+    for domain_info, ideation_output in zip(suggested_source_domains, ideation_outputs):
+        final_outputs.append({
+            "source_domain": domain_info["domain"],
+            "queries": domain_info["queries"],
+            "idea_fragment": ideation_output['idea_fragment']})
     
-    ideation_output = ideation_outputs[0]
-    
-    if ideation_output is None:
-        print(f"    Failed to generate idea for {problem_id}")
-        return None
-    
-    print(f"    Generated: {ideation_output['idea_fragment']['title']}")
-    
+    # "target_papers": target_domain_papers,
+    # "source_papers": domain2papers,
     return {
-        "method": "baseline_2_retrieve_suggest_retrieve_ideate",
-        "problem_id": problem_id,
-        "source_domain": source_domain,
-        "ground_truth": {
-            "gt_domain": convert_domain(problem_info["target_domain"]),
-            "gt_domain_insight": problem_info["target_text"],
+        "research_problem": problem_statement,
+        "target_domain": target_domain,
+        "source_ground_truth": {
+            "gt_domain": convert_domain(problem_info["source_domain"]),
+            "gt_domain_insight": problem_info["source_text"],
             "gt_abstract": problem_info["abstract"]
         },
-        "suggested_domains": suggested_domains,
-        "target_domain_papers_count": len(all_target_papers),
-        "external_domains_papers_count": {
-            domain: len(papers) 
-            for domain, papers in external_domains_papers.items()
-        },
-        "result": ideation_output
+        "idea_rankings": final_outputs
     }
-
 
 # =============================================================================
 # Main Execution
@@ -742,7 +816,7 @@ def parse_arguments():
         "--baseline",
         type=str,
         choices=["1", "2", "both"],
-        default="1",
+        default="2",
         help="Which baseline to run: 1 (direct), 2 (retrieve-suggest-retrieve), or both."
     )
     parser.add_argument(
@@ -765,7 +839,7 @@ def parse_arguments():
     parser.add_argument(
         "--save_freq",
         type=int,
-        default=20,
+        default=5,
         help="Frequency of saving outputs."
     )
 
@@ -787,7 +861,7 @@ def main():
     
     # Initialize vLLM model
     print("Loading model...")
-    llm = LLM(model=args.model_name, tensor_parallel_size=2)
+    llm = LLM(model=args.model_name, tensor_parallel_size=1)
     print("Model loaded.\n")
     
     # Create output directory
@@ -811,7 +885,7 @@ def main():
             if len(baseline_one_outputs) and curr_problem % save_freq == 0:
                 output_file_1 = os.path.join(
                         args.output_dir,
-                        f"baseline1_direct.json"
+                        f"baseline1_direct_new.json"
                     )
                 
                 with open(output_file_1, "w") as f:
@@ -820,15 +894,13 @@ def main():
         
         # Baseline 2: Retrieve-Suggest-Retrieve-Ideate
         if run_baseline_2:
-            result_2 = baseline_retrieve_suggest_retrieve_ideate(
-                args, llm, problem_id, problem_info
-            )
+            result_2 = baseline_dual_retrieval(args, llm, problem_id, problem_info)
             baseline_two_outputs[problem_id] = result_2
             
             if len(baseline_two_outputs) and curr_problem % save_freq == 0:
                 output_file_2 = os.path.join(
                         args.output_dir,
-                        f"baseline2_rsri.json"
+                        f"baseline2_dual_retrieval.json"
                     )
                 
                 with open(output_file_2, "w") as f:
