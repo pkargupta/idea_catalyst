@@ -18,7 +18,6 @@ def create_takeaway_evaluation_prompt(
     target_domain: str,
     method_1_takeaways: List[dict],
     method_2_takeaways: List[dict],
-    ground_truth_takeaways: dict
 ) -> str:
     """
     Creates a prompt for evaluating and comparing cross-domain takeaways from two methods
@@ -29,8 +28,7 @@ def create_takeaway_evaluation_prompt(
         target_domain: The target domain (e.g., "Computer Science")
         method_1_takeaways: List of takeaway dicts from method 1 (e.g., main method)
         method_2_takeaways: List of takeaway dicts from method 2 (e.g., baseline)
-        ground_truth_takeaways: Ground truth takeaway dict from reference paper
-        
+
     Returns:
         Formatted prompt string
     """
@@ -77,7 +75,6 @@ def create_takeaway_evaluation_prompt(
     # Format all three sets of takeaways
     method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
     method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
-    ground_truth_text = format_takeaway_set([ground_truth_takeaways], "GROUND TRUTH TAKEAWAYS (REFERENCE)")
     
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain research takeaways.
 Your task is to compare takeaways from two different methods that attempt to address the same research problem by drawing insights from domains outside the target domain.
@@ -245,8 +242,6 @@ def create_idea_evaluation_prompt(
     method_2_takeaways: list,
     method_1_idea: dict,
     method_2_idea: dict,
-    ground_truth_takeaways: dict,
-    ground_truth_idea: dict
 ) -> str:
     """
     Creates a prompt for comparing the overall cross-domain ideas from two methods
@@ -295,7 +290,6 @@ def create_idea_evaluation_prompt(
     # Format all three sets of takeaways
     method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
     method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
-    ground_truth_text = format_takeaway_set([ground_truth_takeaways], "GROUND TRUTH TAKEAWAYS (REFERENCE)")
 
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain RESEARCH IDEAS.
 Your task is to compare two proposed ideas that integrate insights from an external domain
@@ -558,7 +552,6 @@ def main():
             takeaway_prompt = create_takeaway_evaluation_prompt(research_problem=research_problem, 
                                                                 target_domain=target_domain, 
                                                                 method_takeaways=method_takeaways,
-                                                                ground_truth_takeaways=gt_takeaways)
             takeaway_msg = [{"role": "user", "content": takeaway_prompt}]
 
             takeaway_eval_prompts.append(takeaway_msg)
