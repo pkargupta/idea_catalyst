@@ -490,6 +490,12 @@ def parse_arguments():
         action="store_true",
         help="Skip processing if output file already exists."
     )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=400,
+        help="Max number of samples to run."
+    )
 
     return parser.parse_args()
 
@@ -554,7 +560,9 @@ def main():
         eval_keys = []
 
         # Collect all samples
-        for sample_id, sample_info in baseline_data.items():
+        for i, (sample_id, sample_info) in enumerate(baseline_data.items()):
+            if i == args.max_samples:
+                break
 
             research_problem = sample_info["research_problem"]
             target_domain = sample_info["target_domain"]
@@ -605,21 +613,21 @@ def main():
         )
 
         for (sample_id, idx), t_output, i_output in zip(eval_keys, takeaway_eval_outputs, idea_eval_outputs):
-            takeaway_eval_output_dict[(sample_id, idx)] = t_output
-            idea_eval_output_dict[(sample_id, idx)] = i_output
+            takeaway_eval_output_dict[str((sample_id, idx))] = t_output
+            idea_eval_output_dict[str((sample_id, idx))] = i_output
             
             # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
-            if t_output["comparative_analysis"]["preferred_method"] == "1":
+            if t_output["comparative_analysis"]["preferred_method"] == 1:
                 overall_takeaway_stats[model_id]["win"] += 1
-            elif t_output["comparative_analysis"]["preferred_method"] == "2":
+            elif t_output["comparative_analysis"]["preferred_method"] == 2:
                 overall_takeaway_stats[model_id]["losses"] += 1
             elif t_output["comparative_analysis"]["preferred_method"] == "tie":
                 overall_takeaway_stats[model_id]["ties"] += 1
             
             # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
-            if i_output["overall_assessment"]["preferred_method"] == "1":
+            if i_output["overall_assessment"]["preferred_method"] == 1:
                 overall_idea_stats[model_id]["win"] += 1
-            elif i_output["overall_assessment"]["preferred_method"] == "2":
+            elif i_output["overall_assessment"]["preferred_method"] == 2:
                 overall_idea_stats[model_id]["losses"] += 1
             elif i_output["overall_assessment"]["preferred_method"] == "tie":
                 overall_idea_stats[model_id]["ties"] += 1
