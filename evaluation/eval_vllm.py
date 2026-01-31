@@ -1,6 +1,6 @@
 import os
-os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+# os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 import argparse
 import json
@@ -506,7 +506,7 @@ def main():
 
     # Initialize vLLM model
     print("Loading model...")
-    llm = LLM(model=args.model_name, tensor_parallel_size=2)
+    llm = LLM(model=args.model_name, tensor_parallel_size=8, max_model_len=16384, gpu_memory_utilization=0.8)
     print("Model loaded.\n")
 
     overall_takeaway_stats = {"baseline_one": {"wins": 0,
@@ -616,19 +616,27 @@ def main():
             takeaway_eval_output_dict[str((sample_id, idx))] = t_output
             idea_eval_output_dict[str((sample_id, idx))] = i_output
             
-            if t_output["comparative_analysis"]["preferred_method"] == 1:
-                overall_takeaway_stats[model_id]["wins"] += 1
-            elif t_output["comparative_analysis"]["preferred_method"] == 2:
-                overall_takeaway_stats[model_id]["losses"] += 1
-            elif t_output["comparative_analysis"]["preferred_method"] == "tie":
-                overall_takeaway_stats[model_id]["ties"] += 1
+            try:
+                if t_output["comparative_analysis"]["preferred_method"] == 1:
+                    overall_takeaway_stats[model_id]["wins"] += 1
+                elif t_output["comparative_analysis"]["preferred_method"] == 2:
+                    overall_takeaway_stats[model_id]["losses"] += 1
+                elif t_output["comparative_analysis"]["preferred_method"] == "tie":
+                    overall_takeaway_stats[model_id]["ties"] += 1
+            except (KeyError, TypeError) as e:
+                print(f"Warning: Failed to parse takeaway output for ({sample_id}, {idx}): {e}")
+                print(f"  t_output: {t_output}")
             
-            if i_output["overall_assessment"]["preferred_method"] == 1:
-                overall_idea_stats[model_id]["wins"] += 1
-            elif i_output["overall_assessment"]["preferred_method"] == 2:
-                overall_idea_stats[model_id]["losses"] += 1
-            elif i_output["overall_assessment"]["preferred_method"] == "tie":
-                overall_idea_stats[model_id]["ties"] += 1
+            try:
+                if i_output["overall_assessment"]["preferred_method"] == 1:
+                    overall_idea_stats[model_id]["wins"] += 1
+                elif i_output["overall_assessment"]["preferred_method"] == 2:
+                    overall_idea_stats[model_id]["losses"] += 1
+                elif i_output["overall_assessment"]["preferred_method"] == "tie":
+                    overall_idea_stats[model_id]["ties"] += 1
+            except (KeyError, TypeError) as e:
+                print(f"Warning: Failed to parse idea output for ({sample_id}, {idx}): {e}")
+                print(f"  i_output: {i_output}")
         
         takeaway_eval_output_dict["final_stats"] = overall_takeaway_stats[model_id]
         idea_eval_output_dict["final_stats"] = overall_idea_stats[model_id]

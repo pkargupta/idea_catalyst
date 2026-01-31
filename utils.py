@@ -203,7 +203,7 @@ def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temp
         structured_outputs=StructuredOutputsParams(json=schema),
     )
     
-    responses = llm.chat(messages_list, sampling_params, chat_template_kwargs={"enable_thinking": False})
+    responses = llm.chat(messages_list, sampling_params, chat_template_kwargs={"include_reasoning": False})
     
     # Parse all responses
     parsed_responses = []
