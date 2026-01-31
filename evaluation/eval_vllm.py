@@ -207,7 +207,7 @@ Return a JSON object:
     "consistency_assessment": "Brief assessment of quality consistency across takeaways"
   }},
   "comparative_analysis": {{
-    "preferred_method": "1" | "2" | "tie",
+    "preferred_method": 1 | 2,
     "summary": "2–3 sentences explaining which method’s takeaways are higher quality in terms of meaningfulness, usefulness, and intellectual interest"
   }},
 }}
@@ -226,7 +226,7 @@ class MethodEvaluation(BaseModel):
     consistency_assessment: str
 
 class ComparativeAnalysis(BaseModel):
-    preferred_method: Literal[1, 2, "tie"]
+    preferred_method: Literal[1, 2]
     summary: str
 
 class TakeawayEvaluation(BaseModel):
@@ -410,20 +410,20 @@ Return a JSON object:
 {{
   "idea_comparison": {{
     "novelty": {{
-      "preferred_method": 1 | 2 | "tie",
+      "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining which idea is more novel"
     }},
     "usefulness": {{
-      "preferred_method": 1 | 2 | "tie",
+      "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining which idea is more useful for the research problem"
     }},
     "integration_quality": {{
-      "preferred_method": 1 | 2 | "tie",
+      "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining which idea shows deeper and more meaningful integration"
     }}
   }},
   "overall_assessment": {{
-    "preferred_method": 1 | 2 | "tie",
+    "preferred_method": 1 | 2,
     "summary": "2–3 sentences summarizing which idea is overall more novel, useful, and integrates the two domains better"
   }}
 }}
@@ -432,7 +432,7 @@ Return a JSON object:
     return prompt
 
 class MetricComparison(BaseModel):
-    preferred_method: Literal[1, 2, "tie"]
+    preferred_method: Literal[1, 2]
     reasoning: str
 
 class IdeaComparison(BaseModel):
@@ -441,7 +441,7 @@ class IdeaComparison(BaseModel):
     integration_quality: MetricComparison
 
 class OverallAssessment(BaseModel):
-    preferred_method: Literal[1, 2, "tie"]
+    preferred_method: Literal[1, 2]
     summary: str
 
 class IdeaEvaluation(BaseModel):
