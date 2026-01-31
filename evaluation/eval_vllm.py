@@ -1,5 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+
 import argparse
 import json
 from json_repair import load
@@ -16,8 +18,8 @@ from utils import batch_llm_inference
 def create_takeaway_evaluation_prompt(
     research_problem: str,
     target_domain: str,
-    method_1_takeaways: List[dict],
-    method_2_takeaways: List[dict],
+    method_1_takeaway: List[dict],
+    method_2_takeaway: List[dict],
 ) -> str:
     """
     Creates a prompt for evaluating and comparing cross-domain takeaways from two methods
@@ -33,48 +35,47 @@ def create_takeaway_evaluation_prompt(
         Formatted prompt string
     """
     
-    def format_takeaway_set(takeaways_list, set_name):
+    def format_takeaway(takeaway, set_name):
         """Format a list of takeaways for display."""
-        if not takeaways_list:
+        if not takeaway:
             return f"{set_name}: No takeaways provided."
         
         formatted_parts = [f"\n## {set_name}\n"]
-        for idx, takeaway in enumerate(takeaways_list, 1):
-            formatted_parts.append(f"\n### Takeaway {idx}")
-            formatted_parts.append(f"**Source Domain**: {takeaway.get('source_domain', 'N/A')}")
-            
-            integration = takeaway.get('integration_mechanism', {})
-            
-            # Target domain elements
-            target_elements = integration.get('target_domain_elements', [])
-            if target_elements:
-                formatted_parts.append(f"\n**Target Domain Elements**:")
-                for elem in target_elements:
-                    formatted_parts.append(f"  - {elem}")
-            
-            # Source domain takeaways
-            source_takeaways = integration.get('source_domain_takeaways', [])
-            if source_takeaways:
-                formatted_parts.append(f"\n**Source Domain Insights**:")
-                for i, st in enumerate(source_takeaways, 1):
-                    formatted_parts.append(f"\n  Insight {i}:")
-                    formatted_parts.append(f"  - Rationale: {st.get('selection_rationale', 'N/A')}")
-                    source_form = st.get('source_domain_formulation', 'N/A')
-                    formatted_parts.append(f"  - Source Formulation: {source_form}")
-                    mech = st.get('mechanism_explanation', 'N/A')
-                    formatted_parts.append(f"  - Mechanism: {mech}")
-            
-            # Synthesis
-            synthesis = integration.get('synthesis_approach', 'N/A')
-            formatted_parts.append(f"\n**Synthesis Approach**: {synthesis}")
-            
-            formatted_parts.append("\n" + "-"*60)
+        
+        formatted_parts.append(f"**Source Domain**: {takeaway.get('source_domain', 'N/A')}")
+        
+        integration = takeaway.get('integration_mechanism', {})
+        
+        # Target domain elements
+        target_elements = integration.get('target_domain_elements', [])
+        if target_elements:
+            formatted_parts.append(f"\n**Target Domain Elements**:")
+            for elem in target_elements:
+                formatted_parts.append(f"  - {elem}")
+        
+        # Source domain takeaways
+        source_takeaways = integration.get('source_domain_takeaways', [])
+        if source_takeaways:
+            formatted_parts.append(f"\n**Source Domain Insights**:")
+            for i, st in enumerate(source_takeaways, 1):
+                formatted_parts.append(f"\n  Insight {i}:")
+                formatted_parts.append(f"  - Rationale: {st.get('selection_rationale', 'N/A')}")
+                source_form = st.get('source_domain_formulation', 'N/A')
+                formatted_parts.append(f"  - Source Formulation: {source_form}")
+                mech = st.get('mechanism_explanation', 'N/A')
+                formatted_parts.append(f"  - Mechanism: {mech}")
+        
+        # Synthesis
+        synthesis = integration.get('synthesis_approach', 'N/A')
+        formatted_parts.append(f"\n**Synthesis Approach**: {synthesis}")
+        
+        formatted_parts.append("\n" + "-"*60)
         
         return "\n".join(formatted_parts)
     
     # Format all three sets of takeaways
-    method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
-    method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
+    method_1_text = format_takeaway(method_1_takeaway, "METHOD 1 TAKEAWAYS")
+    method_2_text = format_takeaway(method_2_takeaway, "METHOD 2 TAKEAWAYS")
     
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain research takeaways.
 Your task is to compare takeaways from two different methods that attempt to address the same research problem by drawing insights from domains outside the target domain.
@@ -238,8 +239,8 @@ takeaway_evaluation_schema = TakeawayEvaluation.model_json_schema()
 def create_idea_evaluation_prompt(
     research_problem: str,
     target_domain: str,
-    method_1_takeaways: list,
-    method_2_takeaways: list,
+    method_1_takeaway: list,
+    method_2_takeaway: list,
     method_1_idea: dict,
     method_2_idea: dict,
 ) -> str:
@@ -248,48 +249,47 @@ def create_idea_evaluation_prompt(
     relative to a ground-truth idea from a reference paper.
     """
 
-    def format_takeaway_set(takeaways_list, set_name):
+    def format_takeaway(takeaway, set_name):
         """Format a list of takeaways for display."""
-        if not takeaways_list:
+        if not takeaway:
             return f"{set_name}: No takeaways provided."
         
         formatted_parts = [f"\n## {set_name}\n"]
-        for idx, takeaway in enumerate(takeaways_list, 1):
-            formatted_parts.append(f"\n### Takeaway {idx}")
-            formatted_parts.append(f"**Source Domain**: {takeaway.get('source_domain', 'N/A')}")
-            
-            integration = takeaway.get('integration_mechanism', {})
-            
-            # Target domain elements
-            target_elements = integration.get('target_domain_elements', [])
-            if target_elements:
-                formatted_parts.append(f"\n**Target Domain Elements**:")
-                for elem in target_elements:
-                    formatted_parts.append(f"  - {elem}")
-            
-            # Source domain takeaways
-            source_takeaways = integration.get('source_domain_takeaways', [])
-            if source_takeaways:
-                formatted_parts.append(f"\n**Source Domain Insights**:")
-                for i, st in enumerate(source_takeaways, 1):
-                    formatted_parts.append(f"\n  Insight {i}:")
-                    formatted_parts.append(f"  - Rationale: {st.get('selection_rationale', 'N/A')}")
-                    source_form = st.get('source_domain_formulation', 'N/A')
-                    formatted_parts.append(f"  - Source Formulation: {source_form}")
-                    mech = st.get('mechanism_explanation', 'N/A')
-                    formatted_parts.append(f"  - Mechanism: {mech}")
-            
-            # Synthesis
-            synthesis = integration.get('synthesis_approach', 'N/A')
-            formatted_parts.append(f"\n**Synthesis Approach**: {synthesis}")
-            
-            formatted_parts.append("\n" + "-"*60)
+        
+        formatted_parts.append(f"**Source Domain**: {takeaway.get('source_domain', 'N/A')}")
+        
+        integration = takeaway.get('integration_mechanism', {})
+        
+        # Target domain elements
+        target_elements = integration.get('target_domain_elements', [])
+        if target_elements:
+            formatted_parts.append(f"\n**Target Domain Elements**:")
+            for elem in target_elements:
+                formatted_parts.append(f"  - {elem}")
+        
+        # Source domain takeaways
+        source_takeaways = integration.get('source_domain_takeaways', [])
+        if source_takeaways:
+            formatted_parts.append(f"\n**Source Domain Insights**:")
+            for i, st in enumerate(source_takeaways, 1):
+                formatted_parts.append(f"\n  Insight {i}:")
+                formatted_parts.append(f"  - Rationale: {st.get('selection_rationale', 'N/A')}")
+                source_form = st.get('source_domain_formulation', 'N/A')
+                formatted_parts.append(f"  - Source Formulation: {source_form}")
+                mech = st.get('mechanism_explanation', 'N/A')
+                formatted_parts.append(f"  - Mechanism: {mech}")
+        
+        # Synthesis
+        synthesis = integration.get('synthesis_approach', 'N/A')
+        formatted_parts.append(f"\n**Synthesis Approach**: {synthesis}")
+        
+        formatted_parts.append("\n" + "-"*60)
         
         return "\n".join(formatted_parts)
     
     # Format all three sets of takeaways
-    method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
-    method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
+    method_1_text = format_takeaway(method_1_takeaway, "METHOD 1 TAKEAWAYS")
+    method_2_text = format_takeaway(method_2_takeaway, "METHOD 2 TAKEAWAYS")
 
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain RESEARCH IDEAS.
 Your task is to compare two proposed ideas that integrate insights from an external domain
@@ -469,7 +469,8 @@ def parse_arguments():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="openai/gpt-oss-120b",
+        default="Qwen/Qwen3-14B",
+        #default="openai/gpt-oss-120b",
         help="LLM model name or path."
     )
     parser.add_argument(
@@ -488,12 +489,6 @@ def parse_arguments():
         "--skip_if_exists",
         action="store_true",
         help="Skip processing if output file already exists."
-    )
-    parser.add_argument(
-        "--max_samples",
-        type=int,
-        default=280,
-        help="Number of samples to evaluate."
     )
 
     return parser.parse_args()
@@ -545,9 +540,10 @@ def main():
         takeaway_eval_output_dict = {}
         idea_eval_output_dict = {}
 
-        # Read in baseline file
-        if not os.path.exists(os.path.join(args.input_dir, f"final_{model_id}_results.json")):
-            print(f"Path to baseline data does not exist! {os.path.join(args.input_dir, f"final_{model_id}_results.json")}")
+        # Read in data file
+        fname = os.path.exists(os.path.join(args.input_dir, f"final_{model_id}_results.json"))
+        if not fname:
+            print(f"Path to data does not exist! {fname}")
             continue
         else:
             with open(os.path.join(args.input_dir, f"final_{model_id}_results.json")) as f:
@@ -571,19 +567,20 @@ def main():
             # Aggregate takeaways and ideas
             for idx, (takeaway, proposed_idea) in enumerate(zip(method_takeaways, method_ideas)):
 
-                takeaway_prompt = create_takeaway_evaluation_prompt(research_problem=research_problem, 
-                                                                    target_domain=target_domain, 
-                                                                    method_takeaways=takeaway,
-                                                                    ground_truth_takeaways=gt_takeaways)
+                takeaway_prompt = create_takeaway_evaluation_prompt(research_problem=research_problem,
+                                                                    target_domain=target_domain,
+                                                                    method_1_takeaway=takeaway,
+                                                                    method_2_takeaway=gt_takeaways)
                 takeaway_msg = [{"role": "user", "content": takeaway_prompt}]
                 takeaway_eval_prompts.append(takeaway_msg)
 
-                idea_prompt = create_idea_evaluation_prompt(research_problem=research_problem, 
-                                                            target_domain=target_domain, 
-                                                            method_takeaways=method_takeaways,
-                                                            method_ideas=proposed_idea,
-                                                            ground_truth_takeaways=gt_takeaways,
-                                                            ground_truth_idea=gt_idea)
+                idea_prompt = create_idea_evaluation_prompt(research_problem=research_problem,
+                                                            target_domain=target_domain,
+                                                            method_1_takeaway=takeaway,
+                                                            method_2_takeaway=gt_takeaways,
+                                                            method_1_idea=proposed_idea,
+                                                            method_2_idea=gt_idea)
+                
                 idea_msg = [{"role": "user", "content": idea_prompt}]
                 idea_eval_prompts.append(idea_msg)
                 eval_keys.append((sample_id, idx))
@@ -620,11 +617,11 @@ def main():
                 overall_takeaway_stats[model_id]["ties"] += 1
             
             # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
-            if i_output["comparative_analysis"]["preferred_method"] == "1":
+            if i_output["overall_assessment"]["preferred_method"] == "1":
                 overall_idea_stats[model_id]["win"] += 1
-            elif i_output["comparative_analysis"]["preferred_method"] == "2":
+            elif i_output["overall_assessment"]["preferred_method"] == "2":
                 overall_idea_stats[model_id]["losses"] += 1
-            elif i_output["comparative_analysis"]["preferred_method"] == "tie":
+            elif i_output["overall_assessment"]["preferred_method"] == "tie":
                 overall_idea_stats[model_id]["ties"] += 1
         
         takeaway_eval_output_dict["final_stats"] = overall_takeaway_stats[model_id]
