@@ -616,17 +616,15 @@ def main():
             takeaway_eval_output_dict[str((sample_id, idx))] = t_output
             idea_eval_output_dict[str((sample_id, idx))] = i_output
             
-            # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
             if t_output["comparative_analysis"]["preferred_method"] == 1:
-                overall_takeaway_stats[model_id]["win"] += 1
+                overall_takeaway_stats[model_id]["wins"] += 1
             elif t_output["comparative_analysis"]["preferred_method"] == 2:
                 overall_takeaway_stats[model_id]["losses"] += 1
             elif t_output["comparative_analysis"]["preferred_method"] == "tie":
                 overall_takeaway_stats[model_id]["ties"] += 1
             
-            # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
             if i_output["overall_assessment"]["preferred_method"] == 1:
-                overall_idea_stats[model_id]["win"] += 1
+                overall_idea_stats[model_id]["wins"] += 1
             elif i_output["overall_assessment"]["preferred_method"] == 2:
                 overall_idea_stats[model_id]["losses"] += 1
             elif i_output["overall_assessment"]["preferred_method"] == "tie":
