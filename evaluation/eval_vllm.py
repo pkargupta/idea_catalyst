@@ -176,63 +176,37 @@ OUTPUT FORMAT
 Return a JSON object:
 
 {{
-  "method_1_evaluation": {{
+  "takeaway_comparison": {{
     "rationale_alignment": {{
-      "reasoning": "1–2 sentences explaining rationale alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
+      "preferred_method": 1 | 2,
+      "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
     }},
     "integration_alignment": {{
-      "reasoning": "1–2 sentences explaining integration alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
+      "preferred_method": 1 | 2,
+      "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
     }},
     "novelty_alignment": {{
-      "reasoning": "1–2 sentences explaining novelty alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
+      "preferred_method": 1 | 2,
+      "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
     }},
-    "consistency_assessment": "Brief assessment of quality consistency across takeaways"
   }},
-  "method_2_evaluation": {{
-    "rationale_alignment": {{
-      "reasoning": "1–2 sentences explaining rationale alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
-    }},
-    "integration_alignment": {{
-      "reasoning": "1–2 sentences explaining integration alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
-    }},
-    "novelty_alignment": {{
-      "reasoning": "1–2 sentences explaining novelty alignment",
-      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
-    }},
-    "consistency_assessment": "Brief assessment of quality consistency across takeaways"
-  }},
-  "comparative_analysis": {{
+  "overall_assessment": {{
     "preferred_method": 1 | 2,
     "summary": "2–3 sentences explaining which method’s takeaways are higher quality in terms of meaningfulness, usefulness, and intellectual interest"
-  }},
+  }}
 }}
 """
     
     return prompt
 
-class AlignmentScore(BaseModel):
-    reasoning: str
-    score: Literal[1, 2, 3, 4, 5]
-
-class MethodEvaluation(BaseModel):
-    rationale_alignment: AlignmentScore
-    integration_alignment: AlignmentScore
-    novelty_balance_alignment: AlignmentScore
-    consistency_assessment: str
-
-class ComparativeAnalysis(BaseModel):
-    preferred_method: Literal[1, 2]
-    summary: str
+class takeaway_comparison(BaseModel):
+    rationale_alignment: MetricComparison
+    integration_alignment: MetricComparison
+    novelty_alignment: MetricComparison
 
 class TakeawayEvaluation(BaseModel):
-    method_1_evaluation: MethodEvaluation
-    method_2_evaluation: MethodEvaluation
-    comparative_analysis: ComparativeAnalysis
+    takeaway_comparison: TakeawayComparison
+    overall_assessment: OverallAssessment
 
 takeaway_evaluation_schema = TakeawayEvaluation.model_json_schema()
 
