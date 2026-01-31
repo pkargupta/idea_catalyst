@@ -18,7 +18,6 @@ def create_takeaway_evaluation_prompt(
     target_domain: str,
     method_1_takeaways: List[dict],
     method_2_takeaways: List[dict],
-    ground_truth_takeaways: dict
 ) -> str:
     """
     Creates a prompt for evaluating and comparing cross-domain takeaways from two methods
@@ -29,8 +28,7 @@ def create_takeaway_evaluation_prompt(
         target_domain: The target domain (e.g., "Computer Science")
         method_1_takeaways: List of takeaway dicts from method 1 (e.g., main method)
         method_2_takeaways: List of takeaway dicts from method 2 (e.g., baseline)
-        ground_truth_takeaways: Ground truth takeaway dict from reference paper
-        
+
     Returns:
         Formatted prompt string
     """
@@ -77,26 +75,9 @@ def create_takeaway_evaluation_prompt(
     # Format all three sets of takeaways
     method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
     method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
-    ground_truth_text = format_takeaway_set([ground_truth_takeaways], "GROUND TRUTH TAKEAWAYS (REFERENCE)")
     
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain research takeaways.
 Your task is to compare takeaways from two different methods that attempt to address the same research problem by drawing insights from domains outside the target domain.
-
-You will evaluate these methods relative to a **ground-truth reference takeaway** extracted from a published paper that successfully addressed the same research problem.
-
-CRITICAL FRAMING:
-The ground truth takeaway is extracted from a paper abstract and is therefore intentionally brief and underspecified.
-It should be treated as a **minimal but authoritative exemplar of a high-quality cross-domain insight**, NOT as a fully elaborated solution.
-
-You MUST NOT:
-- Penalize the ground truth for brevity or lack of implementation detail
-- Reward a method simply for being more verbose, detailed, or stylistically polished
-- Treat length, jargon density, or elaboration as indicators of higher quality
-
-You MUST:
-- Focus on **conceptual meaningfulness**, **integration potential in principle**, and **intellectual interest**
-- Judge whether a method’s takeaways are **comparable to or better than** the ground truth along these dimensions
-- Assume all takeaways could be expanded further in a full paper
 
 --------------------------------------------------
 RESEARCH PROBLEM
@@ -104,10 +85,6 @@ RESEARCH PROBLEM
 
 TARGET DOMAIN
 {target_domain}
-
---------------------------------------------------
-GROUND TRUTH TAKEAWAYS (REFERENCE)
-{ground_truth_text}
 
 --------------------------------------------------
 METHOD 1 TAKEAWAYS
@@ -120,47 +97,15 @@ METHOD 2 TAKEAWAYS
 --------------------------------------------------
 EVALUATION GOAL
 
-Determine which method produces takeaways that are most comparable to — or exceed — the **ground truth’s quality as a cross-domain research insight**, focusing on:
-
+Determine which method produces takeaways that are higher quality as a cross-domain research insight**, focusing on:
 1. Whether the insight is genuinely meaningful for the research problem
 2. Whether it has strong potential to integrate with core target-domain elements
 3. Whether it is intellectually interesting and non-obvious, without being forced
 
-The goal is NOT content matching. The goal is **quality alignment**.
-
---------------------------------------------------
-GROUND TRUTH QUALITY BENCHMARKS (CONCEPTUAL)
-
-Use the ground truth to establish a conceptual quality bar along the following dimensions:
-
-### 1. Conceptual Rationale Quality
-The ground truth demonstrates:
-- A principled reason why an external-domain idea is relevant
-- A non-trivial, non-generic connection to the research problem
-- Conceptual legitimacy even when expressed briefly
-
-This concerns **meaning**, not explanation length.
-
-### 2. Integration Potential Quality
-The ground truth demonstrates:
-- Plausible integration into the target domain *in principle*
-- Alignment with core target-domain mechanisms
-- Research usefulness (i.e., the insight could inform method design or training strategy)
-
-This concerns **viability**, not implementation detail.
-
-### 3. Novelty–Relevance Balance
-The ground truth demonstrates:
-- A source domain that is meaningfully distinct from the target domain
-- An intellectually interesting or surprising connection
-- Novelty that is grounded rather than speculative
-
 --------------------------------------------------
 EVALUATION CRITERIA
 
-Evaluate Method 1 and Method 2 relative to the ground truth benchmarks.
-When assessing each criterion, explicitly ground your judgment in the relevant fields
-of each takeaway, as described below.
+When evaluating Method 1 and Method 2, explicitly ground your judgment in the relevant fields of each takeaway, as described below.
 
 ### 1. RATIONALE QUALITY ALIGNMENT
 Assess whether the method’s takeaways provide principled and meaningful justification
@@ -198,7 +143,6 @@ Evaluate whether:
 
 IGNORE:
 - Missing implementation details
-- Whether integration is more detailed than the ground truth
 
 ### 3. NOVELTY–RELEVANCE ALIGNMENT
 Assess whether the method’s takeaways are intellectually interesting and non-obvious
@@ -233,48 +177,46 @@ Return a JSON object:
 {{
   "method_1_evaluation": {{
     "rationale_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining rationale alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "integration_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining integration alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "novelty_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining novelty alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "consistency_assessment": "Brief assessment of quality consistency across takeaways"
   }},
   "method_2_evaluation": {{
     "rationale_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining rationale alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "integration_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining integration alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "novelty_alignment": {{
-      "score": "matches_or_exceeds" | "partially_matches" | "falls_short",
-      "reasoning": "1–2 sentences explaining alignment with ground truth quality"
+      "reasoning": "1–2 sentences explaining novelty alignment",
+      "score": score from 1-5 (1 being the lowest quality and 5 being the highest quality)
     }},
     "consistency_assessment": "Brief assessment of quality consistency across takeaways"
   }},
   "comparative_analysis": {{
     "preferred_method": "1" | "2" | "tie",
-    "summary": "2–3 sentences explaining which method’s takeaways are most comparable to or better than the ground truth in terms of meaningfulness, usefulness, and intellectual interest"
+    "summary": "2–3 sentences explaining which method’s takeaways are higher quality in terms of meaningfulness, usefulness, and intellectual interest"
   }},
-  "ranking": [1, 2] | [2, 1]
 }}
-
 """
     
     return prompt
 
 class AlignmentScore(BaseModel):
-    score: Literal["matches_well", "partially_matches", "does_not_match"]
     reasoning: str
+    score: Literal[1, 2, 3, 4, 5]
 
 class MethodEvaluation(BaseModel):
     rationale_alignment: AlignmentScore
@@ -283,14 +225,13 @@ class MethodEvaluation(BaseModel):
     consistency_assessment: str
 
 class ComparativeAnalysis(BaseModel):
-    preferred_method: Literal[1, 2]
+    preferred_method: Literal[1, 2, "tie"]
     summary: str
 
 class TakeawayEvaluation(BaseModel):
     method_1_evaluation: MethodEvaluation
     method_2_evaluation: MethodEvaluation
     comparative_analysis: ComparativeAnalysis
-    ranking: List[int] = Field(min_items=2, max_items=2)
 
 takeaway_evaluation_schema = TakeawayEvaluation.model_json_schema()
 
@@ -301,8 +242,6 @@ def create_idea_evaluation_prompt(
     method_2_takeaways: list,
     method_1_idea: dict,
     method_2_idea: dict,
-    ground_truth_takeaways: dict,
-    ground_truth_idea: dict
 ) -> str:
     """
     Creates a prompt for comparing the overall cross-domain ideas from two methods
@@ -351,29 +290,10 @@ def create_idea_evaluation_prompt(
     # Format all three sets of takeaways
     method_1_text = format_takeaway_set(method_1_takeaways, "METHOD 1 TAKEAWAYS")
     method_2_text = format_takeaway_set(method_2_takeaways, "METHOD 2 TAKEAWAYS")
-    ground_truth_text = format_takeaway_set([ground_truth_takeaways], "GROUND TRUTH TAKEAWAYS (REFERENCE)")
 
     prompt = f"""You are an expert evaluator assessing the quality of cross-domain RESEARCH IDEAS.
 Your task is to compare two proposed ideas that integrate insights from an external domain
 to address the same research problem.
-
-You will evaluate these ideas relative to a **ground-truth reference idea** extracted from
-a published paper that successfully addressed this problem.
-
-CRITICAL FRAMING:
-The ground truth idea is derived from a paper abstract and high-level description.
-It should be treated as a **minimal but authoritative benchmark** of a strong cross-domain idea,
-NOT as a fully optimized or maximally novel solution.
-
-You MUST NOT:
-- Penalize the ground truth for simplicity or limited detail
-- Reward an idea merely for complexity, technical density, or length
-- Assume that more components automatically imply better integration
-
-You MUST:
-- Focus on **novelty**, **usefulness**, and **quality of cross-domain integration**
-- Judge whether an idea is **comparable to or better than** the ground truth in principle
-- Consider how the supporting takeaways enable or justify the idea
 
 --------------------------------------------------
 RESEARCH PROBLEM
@@ -381,21 +301,6 @@ RESEARCH PROBLEM
 
 TARGET DOMAIN
 {target_domain}
-
---------------------------------------------------
-GROUND TRUTH IDEA (REFERENCE)
-
-Source Domain:
-{ground_truth_idea.get("source_domain", "N/A")}
-
-Proposed Approach:
-{ground_truth_idea.get("idea", {}).get("proposed_approach", "N/A")}
-
-Key Innovations:
-{ground_truth_idea.get("idea", {}).get("key_innovations", [])}
-
-Supporting Takeaways:
-{ground_truth_text}
 
 --------------------------------------------------
 METHOD 1 IDEA
@@ -430,21 +335,16 @@ Supporting Takeaways:
 --------------------------------------------------
 EVALUATION GOAL
 
-Determine which method proposes the **stronger overall cross-domain idea** relative to the
-ground truth, focusing on:
-
+Determine which method proposes the **stronger overall cross-domain idea**, focusing on:
 1. Which idea is more **novel**
 2. Which idea is more **useful** for addressing the research problem
 3. Which idea demonstrates **better integration of the two domains**
-
-The goal is NOT to match the ground truth’s content, but to match or exceed its
-**conceptual quality as a cross-domain research contribution**.
 
 --------------------------------------------------
 EVALUATION CRITERIA
 
 ### 1. NOVELTY
-Which idea is more novel relative to the ground truth?
+Which idea is more novel?
 
 Assess using:
 - The **source domain** chosen and its conceptual distance from the target domain
@@ -511,7 +411,7 @@ Return a JSON object:
   "idea_comparison": {{
     "novelty": {{
       "preferred_method": 1 | 2 | "tie",
-      "reasoning": "1–2 sentences explaining which idea is more novel relative to ground truth"
+      "reasoning": "1–2 sentences explaining which idea is more novel"
     }},
     "usefulness": {{
       "preferred_method": 1 | 2 | "tie",
@@ -524,7 +424,7 @@ Return a JSON object:
   }},
   "overall_assessment": {{
     "preferred_method": 1 | 2 | "tie",
-    "summary": "2–3 sentences summarizing which idea is overall most comparable to or better than the ground truth and why"
+    "summary": "2–3 sentences summarizing which idea is overall more novel, useful, and integrates the two domains better"
   }}
 }}
 """
@@ -532,7 +432,7 @@ Return a JSON object:
     return prompt
 
 class MetricComparison(BaseModel):
-    preferred_method: Literal[1, 2]
+    preferred_method: Literal[1, 2, "tie"]
     reasoning: str
 
 class IdeaComparison(BaseModel):
@@ -541,7 +441,7 @@ class IdeaComparison(BaseModel):
     integration_quality: MetricComparison
 
 class OverallAssessment(BaseModel):
-    preferred_method: str
+    preferred_method: Literal[1, 2, "tie"]
     summary: str
 
 class IdeaEvaluation(BaseModel):
