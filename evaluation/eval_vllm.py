@@ -628,9 +628,9 @@ def main():
         idea_eval_output_dict["final_stats"] = overall_idea_stats[model_id]
         
         # Save output_dict
-        with open(args.takeaway_output_file) as f:
+        with open(args.takeaway_output_file, "w") as f:
             json.dump(takeaway_eval_output_dict, f, indent=2)
-        with open(args.idea_output_file) as f:
+        with open(args.idea_output_file, "w") as f:
             json.dump(idea_eval_output_dict, f, indent=2)
 
         # Print out takeaway stats for model_id
