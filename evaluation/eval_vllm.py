@@ -608,7 +608,18 @@ def main():
     llm = LLM(model=args.model_name, tensor_parallel_size=2)
     print("Model loaded.\n")
 
-    overall_stats = {"baseline_one": {"wins": 0,
+    overall_takeaway_stats = {"baseline_one": {"wins": 0,
+                                      "losses": 0,
+                                      "ties": 0},
+                    "baseline_two": {"wins": 0,
+                                     "losses": 0,
+                                     "ties": 0},
+                    "mainmethod": {"wins": 0,
+                                   "losses": 0,
+                                   "ties": 0}
+                    }
+    
+    overall_idea_stats = {"baseline_one": {"wins": 0,
                                       "losses": 0,
                                       "ties": 0},
                     "baseline_two": {"wins": 0,
@@ -624,12 +635,15 @@ def main():
         print(f"Running evaluation for method: {model_id}...")
 
         # Setup output dir
-        output_file_name = f"{model_id}_eval.json"
-        args.output_file = os.path.join(args.output_dir, output_file_name)
+        takeaway_output_file_name = f"{model_id}_takeaway_eval.json"
+        idea_output_file_name = f"{model_id}_idea_eval.json"
+        args.takeaway_output_file = os.path.join(args.output_dir, takeaway_output_file_name)
+        args.idea_output_file = os.path.join(args.output_dir, idea_output_file_name)
 
         # Create output directory if needed
-        os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
-        eval_output_dict = {}
+        os.makedirs(os.path.dirname(args.takeaway_output_file), exist_ok=True)
+        takeaway_eval_output_dict = {}
+        idea_eval_output_dict = {}
 
         # Read in baseline file
         if not os.path.exists(os.path.join(args.input_dir, f"final_{model_id}_results.json")):
@@ -640,7 +654,9 @@ def main():
                 baseline_data = load(f)
 
         takeaway_eval_prompts = []
-        takeaway_eval_keys = []
+        idea_eval_prompts = []
+        eval_keys = []
+
         # Collect all samples
         for sample_id, sample_info in baseline_data.items():
 
@@ -648,15 +664,30 @@ def main():
             target_domain = sample_info["target_domain"]
             method_takeaways = sample_info["predicted_takeaways"]
             gt_takeaways = sample_info["gt_takeaways"]
+            method_ideas = sample_info["proposed_ideas"]
+            gt_idea = sample_info["gt_idea"]
 
-            takeaway_prompt = create_takeaway_evaluation_prompt(research_problem=research_problem, 
-                                                                target_domain=target_domain, 
-                                                                method_takeaways=method_takeaways,
-                                                                ground_truth_takeaways=gt_takeaways)
-            takeaway_msg = [{"role": "user", "content": takeaway_prompt}]
 
-            takeaway_eval_prompts.append(takeaway_msg)
-            takeaway_eval_keys.append(sample_id)
+            # Aggregate takeaways and ideas
+            for idx, (takeaway, proposed_idea) in enumerate(zip(method_takeaways, method_ideas)):
+
+                takeaway_prompt = create_takeaway_evaluation_prompt(research_problem=research_problem, 
+                                                                    target_domain=target_domain, 
+                                                                    method_takeaways=takeaway,
+                                                                    ground_truth_takeaways=gt_takeaways)
+                takeaway_msg = [{"role": "user", "content": takeaway_prompt}]
+                takeaway_eval_prompts.append(takeaway_msg)
+
+                idea_prompt = create_idea_evaluation_prompt(research_problem=research_problem, 
+                                                            target_domain=target_domain, 
+                                                            method_takeaways=method_takeaways,
+                                                            method_ideas=proposed_idea,
+                                                            ground_truth_takeaways=gt_takeaways,
+                                                            ground_truth_idea=gt_idea)
+                idea_msg = [{"role": "user", "content": idea_prompt}]
+                idea_eval_prompts.append(idea_msg)
+                eval_keys.append((sample_id, idx))
+
         
         # Batch inference for all takeaway evals
         takeaway_eval_outputs = batch_llm_inference(
@@ -667,25 +698,56 @@ def main():
             max_tokens=8192
         )
 
-        for sample_id, output in zip(takeaway_eval_keys, takeaway_eval_outputs):
-            eval_output_dict[sample_id] = output
+        # Batch inference for all idea evals
+        idea_eval_outputs = batch_llm_inference(
+            llm,
+            idea_eval_prompts,
+            idea_evaluation_schema,
+            temperature=args.temp,
+            max_tokens=8192
+        )
+
+        for (sample_id, idx), t_output, i_output in zip(eval_keys, takeaway_eval_outputs, idea_eval_outputs):
+            takeaway_eval_output_dict[(sample_id, idx)] = t_output
+            idea_eval_output_dict[(sample_id, idx)] = i_output
             
             # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
-            if output["comparative_analysis"]["preferred_method"] == "1":
-                overall_stats[model_id]["win"] += 1
-            elif output["comparative_analysis"]["preferred_method"] == "2":
-                overall_stats[model_id]["losses"] += 1
-            elif output["comparative_analysis"]["preferred_method"] == "tie":
-                overall_stats[model_id]["ties"] += 1
+            if t_output["comparative_analysis"]["preferred_method"] == "1":
+                overall_takeaway_stats[model_id]["win"] += 1
+            elif t_output["comparative_analysis"]["preferred_method"] == "2":
+                overall_takeaway_stats[model_id]["losses"] += 1
+            elif t_output["comparative_analysis"]["preferred_method"] == "tie":
+                overall_takeaway_stats[model_id]["ties"] += 1
+            
+            # @SHUHAIB: Can modify this to whatever matches up with your updated schema!
+            if i_output["comparative_analysis"]["preferred_method"] == "1":
+                overall_idea_stats[model_id]["win"] += 1
+            elif i_output["comparative_analysis"]["preferred_method"] == "2":
+                overall_idea_stats[model_id]["losses"] += 1
+            elif i_output["comparative_analysis"]["preferred_method"] == "tie":
+                overall_idea_stats[model_id]["ties"] += 1
         
-        eval_output_dict["final_stats"] = overall_stats[model_id]
+        takeaway_eval_output_dict["final_stats"] = overall_takeaway_stats[model_id]
+        idea_eval_output_dict["final_stats"] = overall_idea_stats[model_id]
         
         # Save output_dict
-        with open(args.output_file) as f:
-            json.dump(eval_output_dict, f, indent=2)
+        with open(args.takeaway_output_file) as f:
+            json.dump(takeaway_eval_output_dict, f, indent=2)
+        with open(args.idea_output_file) as f:
+            json.dump(idea_eval_output_dict, f, indent=2)
 
-        # Print out stats for model_id
-        stats = overall_stats[model_id]
+        # Print out takeaway stats for model_id
+        print(f"Takeaway Evaluation Stats for {model_id}")
+        stats = overall_takeaway_stats[model_id]
+        win_rate = stats["wins"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
+        tie_rate = stats["ties"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
+        loss_rate = stats["losses"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
+        print(f"{model_id} Stats: {json.dumps(stats, indent=2)}")
+        print(f"{model_id} Win Rate: {win_rate:.2%}\nTie Rate: {tie_rate:.2%}\nLoss Rate: {loss_rate:.2%}\n")
+
+        # Print out idea stats for model_id
+        print(f"Idea Evaluation Stats for {model_id}")
+        stats = overall_idea_stats[model_id]
         win_rate = stats["wins"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
         tie_rate = stats["ties"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
         loss_rate = stats["losses"] / (stats["wins"] + stats["losses"] + stats["ties"]) if (stats["wins"] + stats["losses"] + stats["ties"]) > 0 else 0
