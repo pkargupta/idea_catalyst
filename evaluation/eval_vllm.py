@@ -102,9 +102,9 @@ When evaluating Method 1 and Method 2, explicitly ground your judgment in the re
 
 ### 1. INTERDISCIPLINARY INSIGHTFULNESS
 Assess whether the method's takeaways provide insightful perspectives on the research problem.
-  - Perspectives should introduce specific concepts/frameworks from the source domain ({source_domain})
+  - Perspectives should introduce specific concepts/frameworks from their respective source domain
   - Insightful perspectives should be intellectually interesting, non-obvious, and thought-provoking to researchers in the target domain ({target_domain})
-    - Non-obvious perspectives typically come from source domains ({source_domain}) that are meaningfully distinct from the target domain ({target_domain})
+    - Non-obvious perspectives typically come from source domains that are meaningfully distinct from the target domain ({target_domain})
 
 ### 2. INTERDISCIPLINARY RELEVANCE
 Assess whether the method's takeaways are relevant to the research problem and have strong potential for integration in the target domain ({target_domain}).
@@ -308,8 +308,8 @@ Return a JSON object:
     return prompt
 
 class IdeaComparison(BaseModel):
-    interdisciplinary_novelty: MetricComparison
-    interdisciplinary_usefulness: MetricComparison
+    novelty: MetricComparison
+    usefulness: MetricComparison
 
 class IdeaEvaluation(BaseModel):
     idea_comparison: IdeaComparison
@@ -484,12 +484,10 @@ def main():
             idea_eval_output_dict[str((sample_id, idx))] = i_output
             
             try:
-                if t_output["comparative_analysis"]["preferred_method"] == 1:
+                if t_output["overall_assessment"]["preferred_method"] == 1:
                     overall_takeaway_stats[model_id]["wins"] += 1
-                elif t_output["comparative_analysis"]["preferred_method"] == 2:
+                elif t_output["overall_assessment"]["preferred_method"] == 2:
                     overall_takeaway_stats[model_id]["losses"] += 1
-                elif t_output["comparative_analysis"]["preferred_method"] == "tie":
-                    overall_takeaway_stats[model_id]["ties"] += 1
             except (KeyError, TypeError) as e:
                 print(f"Warning: Failed to parse takeaway output for ({sample_id}, {idx}): {e}")
                 print(f"  t_output: {t_output}")
@@ -499,8 +497,6 @@ def main():
                     overall_idea_stats[model_id]["wins"] += 1
                 elif i_output["overall_assessment"]["preferred_method"] == 2:
                     overall_idea_stats[model_id]["losses"] += 1
-                elif i_output["overall_assessment"]["preferred_method"] == "tie":
-                    overall_idea_stats[model_id]["ties"] += 1
             except (KeyError, TypeError) as e:
                 print(f"Warning: Failed to parse idea output for ({sample_id}, {idx}): {e}")
                 print(f"  i_output: {i_output}")
