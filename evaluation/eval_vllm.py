@@ -111,6 +111,8 @@ Assess whether the method's takeaways are relevant to the research problem and h
   - Ideal takeaways should:
     - Inspire new approaches/solutions to the research problem in the target domain ({target_domain})
     - Address a gap/challenge for the research problem in the target domain ({target_domain})
+  - The complexity, simplicity, or practicality of the takeaway should not factor into your decision (e.g., a "clear, immediately applicable" solution does not mean more relevant). Relevance is defined based on the potential impact of the source domain being introduced to the target domain for the research problem.
+  - Keep in mind that if the distance between the source and target domain is larger (e.g., Computer Science & Engineering are closer than Computer Science & Philosophy), the idea may inherently be less practical. This does not mean that it is less relevant. Focus on the degree of the potential impact to the research problem instead.
 
 IGNORE:
 - Length of explanations
@@ -281,6 +283,8 @@ Which idea has greater interdisciplinary potential for addressing the research p
     - Present new approaches/solutions to the research problem in the target domain ({target_domain})
     - Address a gap/challenge for the research problem in the target domain ({target_domain})
     - The idea integrates the concepts from both the target domain and source domain into a well-formed idea that addresses the research problem
+  - The complexity, simplicity, or practicality of the proposed idea should not factor into your decision. Usefulness is defined based on the potential impact of the source domain being introduced to the target domain. Specifically, a more useful interdisciplinary idea integrates the source and target domains in a way that allows for a more significant problem/challenge to be solved or a significant gap in existing ideas to be addressed.
+  - Keep in mind that if the distance between the source and target domain is larger (e.g., Computer Science & Engineering are closer than Computer Science & Philosophy), the idea may inherently be less practical. This does not mean that it is less useful. Focus on the degree of the potential impact instead.
 
 --------------------------------------------------
 OUTPUT FORMAT
@@ -308,8 +312,8 @@ Return a JSON object:
     return prompt
 
 class IdeaComparison(BaseModel):
-    novelty: MetricComparison
-    usefulness: MetricComparison
+    interdisciplinary_novelty: MetricComparison
+    interdisciplinary_usefulness: MetricComparison
 
 class IdeaEvaluation(BaseModel):
     idea_comparison: IdeaComparison
