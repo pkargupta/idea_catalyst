@@ -10,6 +10,9 @@ import os
 os.environ["HF_HOME"] = "/shared/data3/pk36/.cache"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import json
 import argparse
 from collections import defaultdict
@@ -18,64 +21,20 @@ import glob
 from tqdm import tqdm
 from vllm import LLM
 
-from prompts import (
-    create_initial_decomposition_prompt,
+from ablation_prompts import (
     create_target_domain_analysis_prompt,
     create_cross_domain_query_prompt,
     create_cross_domain_analysis_prompt,
     create_target_domain_integration_prompt,
     create_interdisciplinary_comparison_prompt,
-    initial_decomposition_schema,
     target_domain_analysis_schema,
     cross_domain_queries_schema,
     cross_domain_analysis_schema,
     target_domain_integration_schema,
     interdisciplinary_comparison_schema
 )
-from classes import ResearchProblem
+from ablation_classes import ResearchProblem, Question
 from utils import batch_llm_inference, retrieve_papers_for_question, convert_domain
-
-
-def decompose(args, llm, problem_statement):
-    """
-    Decompose the research problem into specific research questions.
-    
-    Args:
-        args: Command-line arguments
-        llm: Language model instance
-        problem_statement: The research problem to decompose
-        
-    Returns:
-        ResearchProblem object containing decomposed questions
-    """
-    prompt = create_initial_decomposition_prompt(problem_statement, args.fine_grained_domain)
-    messages = [{"role": "user", "content": prompt}]
-
-    decomposition_outputs = batch_llm_inference(
-        llm, 
-        [messages], 
-        initial_decomposition_schema,
-        temperature=args.temp
-    )
-    decomposition_output = decomposition_outputs[0]
-
-    if decomposition_output is None:
-        print("Failed to get decomposition output!")
-        return None
-
-    # Create ResearchProblem object
-    research_problem = ResearchProblem.from_initial_decomposition(
-        decomposition_output, 
-        args.fine_grained_domain
-    )
-
-    print(f"Generated {len(research_problem.research_questions)} research questions:")
-    for question in research_problem.research_questions:
-        print(f"  - {question.id}:")
-        print(f"\t\t- {question.domain_specific_question}")
-        print(f"\t\t- {question.domain_agnostic_question}")
-    
-    return research_problem
 
 
 def explore_target_domain(args, llm, research_problem):
@@ -87,25 +46,10 @@ def explore_target_domain(args, llm, research_problem):
         llm: Language model instance
         research_problem: ResearchProblem object to populate
     """
-    # Step 2a: Retrieve papers for all questions in target domain
-    print("\n2a. Retrieving papers from target domain...")
-    for question in research_problem.research_questions:
-        print(f"  Retrieving for {question.id}...")
-        papers = retrieve_papers_for_question(
-            question,
-            research_problem.target_domain,
-            max_papers=args.max_papers_per_query,
-            year=args.publication_year
-        )
-        research_problem.target_domain.add_question_papers(question, papers)
-        print(f"    - Retrieved {len(papers)} papers")
 
-    # Step 2b: Batch analyze all questions in target domain
+    # Step 2a: Analyze the research problem in target domain
     print("\n2b. Analyzing target domain papers (batch inference)...")
-    analysis_messages_list = _prepare_target_domain_analysis_prompts(
-        research_problem, 
-        research_problem.target_domain
-    )
+    analysis_messages_list = _prepare_target_domain_analysis_prompts(research_problem)
 
     if not analysis_messages_list:
         print("  Warning: No papers to analyze")
@@ -124,7 +68,7 @@ def explore_target_domain(args, llm, research_problem):
     _process_target_domain_analysis(research_problem, analysis_outputs)
 
 
-def _prepare_target_domain_analysis_prompts(research_problem, target_domain):
+def _prepare_target_domain_analysis_prompts(research_problem: ResearchProblem):
     """
     Prepare batch of analysis prompts for target domain papers.
     
@@ -136,30 +80,21 @@ def _prepare_target_domain_analysis_prompts(research_problem, target_domain):
         List of message prompts for batch inference
     """
     analysis_messages_list = []
+    prompt = create_target_domain_analysis_prompt(
+        research_problem=research_problem.problem_statement,
+        fine_grained_domain=research_problem.fine_grained_domain)
     
-    for question in research_problem.research_questions:
-        papers = research_problem.target_domain.fetch_question_papers(question)
-        
-        if not papers:
-            print(f"  Warning: No papers for {question.id}, skipping analysis")
-            continue
-        
-        prompt = create_target_domain_analysis_prompt(
-            research_problem=research_problem.problem_statement,
-            domain_specific_question=question.domain_specific_question,
-            domain_agnostic_question=question.domain_agnostic_question,
-            question_rationale=question.rationale,
-            papers_with_snippets=papers,
-            target_domain=target_domain,
-            fine_grained_domain=research_problem.fine_grained_domain
-        )
-        messages = [{"role": "user", "content": prompt}]
-        analysis_messages_list.append(messages)
-    
+    messages = [{"role": "user", "content": prompt}]
+    analysis_messages_list.append(messages)
+
+    research_problem.add_research_question(question=Question(id="research_problem", 
+                                                             domain_specific_question=research_problem.problem_statement, 
+                                                             domain_agnostic_question=research_problem.problem_statement))
+
     return analysis_messages_list
 
 
-def _process_target_domain_analysis(research_problem, analysis_outputs):
+def _process_target_domain_analysis(research_problem: ResearchProblem, analysis_outputs):
     """
     Process and store target domain analysis results.
     
@@ -172,29 +107,15 @@ def _process_target_domain_analysis(research_problem, analysis_outputs):
             print(f"  Failed to analyze {question.id}")
             continue
 
-        # Extract paper relevance and remove irrelevant papers
-        paper_relevance = {
-            paper["paper_title"]: paper["is_relevant"] 
-            for paper in analysis_output.get("paper_relevance", [])
-        }
-        paper_titles = list(
-            research_problem.target_domain.fetch_question_papers(question).keys()
-        )
-        
+        target_domain = research_problem.get_or_create_domain(domain_name=analysis_output["target_domain"])
+        research_problem.target_domain = target_domain
         question.target_domain_analysis = analysis_output
         research_problem.target_domain.add_question_analysis(question, analysis_output)
-        
-        # Delete irrelevant papers
-        for paper_title in paper_titles:
-            if paper_title in paper_relevance and not paper_relevance[paper_title]:
-                research_problem.target_domain.del_question_paper(question, paper_title)
         
         # Determine if question is addressed
         assessment = analysis_output.get("overall_assessment", "largely unaddressed").lower()
         is_addressed = "substantially" in assessment or "partial" in assessment
         question.mark_as_addressed(is_addressed)
-        
-        print(f"  {question.id}: {assessment} ({question.domain_specific_question})")
         
         # Log remaining challenges
         remaining_challenges = analysis_output.get("remaining_challenges", [])
@@ -446,18 +367,6 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
     
     # Generate integration prompts for each question-domain pair
     for question, domain_outputs in question_to_domains.items():
-        # Get parent question's target domain papers
-        if question.parent_question:
-            target_papers = research_problem.target_domain.fetch_question_papers(
-                question.parent_question
-            )
-        else:
-            target_papers = research_problem.target_domain.fetch_question_papers(question)
-        
-        if not target_papers:
-            print(f"  Warning: No target domain papers for {question.id}, skipping integration")
-            continue
-        
         for domain, output in domain_outputs:
             source_papers = domain.fetch_question_papers(question)
             
@@ -473,7 +382,7 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
                 if title in source_papers
             }
             
-            if not relevant_source_papers:
+            if (not relevant_source_papers):
                 print(f"  Warning: No relevant source papers for {question.id} from {domain.domain_name}")
                 continue
             
@@ -485,7 +394,6 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
                 question_challenge=question.rationale,
                 target_domain=research_problem.target_domain.domain_name,
                 fine_grained_domain=research_problem.fine_grained_domain,
-                target_domain_papers=target_papers,
                 source_domain=domain.domain_name,
                 source_domain_papers=relevant_source_papers,
                 source_domain_takeaways=output["solution_takeaways"]
@@ -683,7 +591,7 @@ def save_results(args, research_problem, cross_domain_analysis_keys, cross_domai
         ))
 
         # Store results for sufficiently relevant and addressed questions
-        if (prop_relevant > args.min_rel_threshold and 
+        if ((question, domain) in integrated_ideas) or (prop_relevant > args.min_rel_threshold and 
             output["challenge_sufficiency_assessment"]["is_challenge_addressed"]):
             
             question_key = question.domain_specific_question
@@ -834,55 +742,13 @@ def process_single_problem(args, llm, problem_id, problem_info):
             existing_results = json.load(f)
         
         if "idea_rankings" in existing_results and existing_results["idea_rankings"] and len(existing_results["idea_rankings"]) > 0:
-
-            # Check if source_domain_formulation and mechanism_explanation exist for selected takeaways, if not, add them
-            update_needed = False
-            for idea in existing_results["idea_rankings"]:
-                if "idea_fragment" in idea and "integration_mechanism" in idea["idea_fragment"] and "selected_takeaways" in idea["idea_fragment"]["integration_mechanism"] and "source_domain_formulation" not in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"][0]:
-                    update_needed = True
-                    question_text = idea["question"]
-                    source_domain = idea["source_domain"]
-                    if (question_text in existing_results) and (source_domain in existing_results[question_text]) and ("takeaways" in existing_results[question_text][source_domain]):
-                        selected_takeaways = [s["takeaway_id"] for s in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]]
-                        takeaway_info = {takeaway["takeaway_id"]: takeaway for takeaway in existing_results[question_text][source_domain]["takeaways"] if takeaway["takeaway_id"] in selected_takeaways}
-                        # Only save the selected takeaways in idea_fragment
-                        for selected_takeaway in idea["idea_fragment"]["integration_mechanism"]["selected_takeaways"]:
-                            takeaway_id = selected_takeaway["takeaway_id"]
-                            selected_takeaway["source_domain_formulation"] = takeaway_info[takeaway_id]["source_domain_formulation"]
-                            selected_takeaway["mechanism_explanation"] = takeaway_info[takeaway_id]["mechanism_explanation"]
-            
-            # if the idea rankings have questions that actually should be filtered, then separate them:
-            filtered_idea_rankings = []
-            for idea in existing_results["idea_rankings"]:
-                if idea["question"] in existing_results and idea["source_domain"] in existing_results[idea["question"]]:
-                    filtered_idea_rankings.append(idea)
-            
-            if len(filtered_idea_rankings) != len(existing_results["idea_rankings"]):
-                print(f"Output file {args.output_file} exists but unfiltered, filtering")
-                existing_results["unfiltered_idea_rankings"] = existing_results["idea_rankings"]
-                existing_results["idea_rankings"] = filtered_idea_rankings
-                with open(args.output_file, "w") as f:
-                    json.dump(existing_results, fp=f, indent=2)
-                return
-            elif update_needed:
-                print(f"Output file {args.output_file} exists but missing takeaway details, updating")
-                with open(args.output_file, "w") as f:
-                    json.dump(existing_results, fp=f, indent=2)
-                return
-            else:
-                print(f"Output file {args.output_file} already exists, skipping...")
-                return
-        
+            print(f"Output file {args.output_file} already exists, skipping...")
+            return
         else:
             print(f"Output file {args.output_file} already exists but no rankings, re-processing...")
 
     # Execute pipeline
-    print("Decomposing...")
-    research_problem = decompose(args, llm, problem_statement)
-    
-    if research_problem is None:
-        print(f"Skipping {problem_id} due to decomposition failure")
-        return
+    research_problem = ResearchProblem(problem_statement=problem_statement, fine_grained_domain=args.fine_grained_domain)
 
     print("Exploring target domain...")
     explore_target_domain(args, llm, research_problem)
@@ -921,7 +787,7 @@ def parse_arguments():
     parser.add_argument(
         "--problem_file",
         type=str,
-        default="data/cross-domain-inspiration-relations.json",
+        default="../../data/cross-domain-inspiration-relations.json",
         help="Path to the proposal text file."
     )
     parser.add_argument(
@@ -933,7 +799,7 @@ def parse_arguments():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="inspiration_pred_output",
+        default="no_decomp_outputs",
         help="Path to output directory."
     )
     parser.add_argument(
