@@ -199,10 +199,18 @@ Return a JSON object:
     
     return prompt
 
-class takeaway_comparison(BaseModel):
+class MetricComparison(BaseModel):
+    preferred_method: Literal[1, 2]
+    reasoning: str
+
+class TakeawayComparison(BaseModel):
     rationale_alignment: MetricComparison
     integration_alignment: MetricComparison
     novelty_alignment: MetricComparison
+
+class OverallAssessment(BaseModel):
+    preferred_method: Literal[1, 2]
+    summary: str
 
 class TakeawayEvaluation(BaseModel):
     takeaway_comparison: TakeawayComparison
@@ -405,18 +413,10 @@ Return a JSON object:
 
     return prompt
 
-class MetricComparison(BaseModel):
-    preferred_method: Literal[1, 2]
-    reasoning: str
-
 class IdeaComparison(BaseModel):
     novelty: MetricComparison
     usefulness: MetricComparison
     integration_quality: MetricComparison
-
-class OverallAssessment(BaseModel):
-    preferred_method: Literal[1, 2]
-    summary: str
 
 class IdeaEvaluation(BaseModel):
     idea_comparison: IdeaComparison
