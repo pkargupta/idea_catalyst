@@ -262,74 +262,25 @@ Supporting Takeaways:
 {method_2_text}
 
 --------------------------------------------------
-EVALUATION GOAL
-
-Determine which method proposes the **stronger overall cross-domain idea**, focusing on:
-1. Which idea is more **novel**
-2. Which idea is more **useful** for addressing the research problem
-3. Which idea demonstrates **better integration of the two domains**
-
---------------------------------------------------
 EVALUATION CRITERIA
 
-### 1. NOVELTY
+### 1.INTERDISCIPLINARY NOVELTY
 Which idea is more novel?
-
-Assess using:
-- The **source domain** chosen and its conceptual distance from the target domain
-- The **proposed_approach**: Is the idea non-obvious to target-domain experts?
-- The **key_innovations**: Do they reflect insights unlikely to arise within the target domain alone?
-- Whether the supporting takeaways draw on **less common or underexplored external insights**
+  - The **source domain** chosen and its conceptual distance from the target domain
+  - The **proposed_approach**: Is the idea non-obvious to target-domain experts?
+  - The **key_innovations**: Do they reflect insights unlikely to arise within the target domain alone?
+  - Whether the supporting takeaways draw on **less common or underexplored external insights**
 
 Higher novelty means:
-- The idea is surprising but still credible
-- The cross-domain move feels inventive rather than expected
+  - The idea is surprising but still credible
+  - The cross-domain move feels inventive rather than expected
 
-### 2. USEFULNESS
-Which idea has greater potential to meaningfully advance solutions to the research problem?
-
-Assess using:
-- The **key_innovations**: Do they directly address gaps or limitations in the target domain?
-- The **proposed_approach**: Does it plausibly improve performance, robustness, efficiency, or understanding?
-- Whether the **source domain** offers capabilities the target domain currently lacks
-- How well the supporting takeaways justify the idea’s relevance
-
-Higher usefulness means:
-- The idea has clear research or practical payoff
-- The integration targets real shortcomings of existing approaches
-
-### 3. QUALITY OF INTEGRATION
-
-Evaluate integration depth using the following lenses:
-
-#### (a) Depth of Integration
-Which idea better combines elements from both domains into a genuinely unified framework?
-
-Strong integration:
-- Components from both domains are co-designed and mutually constraining
-- Removing either domain would fundamentally weaken or break the idea
-
-Weak integration:
-- One domain’s methods are simply applied to the other’s problem
-- Domains are combined sequentially or superficially
-
-#### (b) Multi-Stage Disciplinary Engagement
-Which idea requires expertise from both domains across multiple research stages?
-
-Strong engagement:
-- Both domains inform problem formulation, method design, and interpretation
-- Sustained cross-domain reasoning is required
-
-Weak engagement:
-- One domain dominates; the other is used for a single conceptual step
-
-#### (c) Innovation Payoff
-Which idea has a clearer, more plausible path to outcomes that would NOT emerge
-from either domain alone?
-
-Strong payoff:
-- The core capability exists only because of the integration
-- The cross-domain synthesis is necessary, not ornamental
+### 2.INTERDISCIPLINARY USEFULNESS
+Which idea has greater interdisciplinary potential for addressing the research problem in the target domain ({target_domain})?
+  - Ideas with greater interdisciplinary potential should:
+    - Present new approaches/solutions to the research problem in the target domain ({target_domain})
+    - Address a gap/challenge for the research problem in the target domain ({target_domain})
+    - The idea integrates the concepts from both the target domain and source domain into a well-formed idea that addresses the research problem
 
 --------------------------------------------------
 OUTPUT FORMAT
@@ -338,22 +289,18 @@ Return a JSON object:
 
 {{
   "idea_comparison": {{
-    "novelty": {{
+    "interdisciplinary_novelty": {{
       "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining which idea is more novel"
     }},
-    "usefulness": {{
+    "interdisciplinary_usefulness": {{
       "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining which idea is more useful for the research problem"
-    }},
-    "integration_quality": {{
-      "preferred_method": 1 | 2,
-      "reasoning": "1–2 sentences explaining which idea shows deeper and more meaningful integration"
     }}
   }},
   "overall_assessment": {{
     "preferred_method": 1 | 2,
-    "summary": "2–3 sentences summarizing which idea is overall more novel, useful, and integrates the two domains better"
+    "summary": "2–3 sentences summarizing which idea is overall more interdisciplinary novel, interdisciplinary useful, and integrates the two domains better"
   }}
 }}
 """
@@ -361,9 +308,8 @@ Return a JSON object:
     return prompt
 
 class IdeaComparison(BaseModel):
-    novelty: MetricComparison
-    usefulness: MetricComparison
-    integration_quality: MetricComparison
+    interdisciplinary_novelty: MetricComparison
+    interdisciplinary_usefulness: MetricComparison
 
 class IdeaEvaluation(BaseModel):
     idea_comparison: IdeaComparison
