@@ -96,78 +96,30 @@ METHOD 2 TAKEAWAYS
 {method_2_text}
 
 --------------------------------------------------
-EVALUATION GOAL
-
-Determine which method produces takeaways that are higher quality as a cross-domain research insight**, focusing on:
-1. Whether the insight is genuinely meaningful for the research problem
-2. Whether it has strong potential to integrate with core target-domain elements
-3. Whether it is intellectually interesting and non-obvious, without being forced
-
---------------------------------------------------
 EVALUATION CRITERIA
 
 When evaluating Method 1 and Method 2, explicitly ground your judgment in the relevant fields of each takeaway, as described below.
 
-### 1. RATIONALE QUALITY ALIGNMENT
-Assess whether the method’s takeaways provide principled and meaningful justification
-for selecting the external-domain insight.
+### 1. INTERDISCIPLINARY INSIGHTFULNESS
+Assess whether the method's takeaways provide insightful perspectives on the research problem.
+  - Perspectives should introduce specific concepts/frameworks from the source domain ({source_domain})
+  - Insightful perspectives should be intellectually interesting, non-obvious, and thought-provoking to researchers in the target domain ({target_domain})
+    - Non-obvious perspectives typically come from source domains ({source_domain}) that are meaningfully distinct from the target domain ({target_domain})
 
-Primarily assess using:
-- **Rationale**: Why this source-domain insight was chosen
-- **Source Formulation**: How the insight is framed in source-domain terms
-- **Mechanism**: Why and how the insight addresses the research challenge
-
-Evaluate whether:
-- The rationale reflects a non-trivial, principled connection (not a surface analogy)
-- The source-domain concept is meaningfully articulated, even if briefly
-- The mechanism explanation supports transfer *in principle*
+### 2. INTERDISCIPLINARY RELEVANCE
+Assess whether the method's takeaways are relevant to the research problem and have strong potential for integration in the target domain ({target_domain}).
+  - Ideal takeaways should:
+    - Inspire new approaches/solutions to the research problem in the target domain ({target_domain})
+    - Address a gap/challenge for the research problem in the target domain ({target_domain})
 
 IGNORE:
 - Length of explanations
-- Degree of elaboration
 - Narrative polish
-
-### 2. INTEGRATION POTENTIAL ALIGNMENT
-Assess whether the method’s takeaways have strong potential to integrate with
-core target-domain elements.
-
-Primarily assess using:
-- **Target Domain Elements**: Which concrete target-domain components are engaged
-- **Synthesis Approach**: How the elements and takeaways are combined
-- **Mechanism**: Whether the integration logic is technically coherent
-- **Source Formulation**: Whether the source insight aligns with target mechanisms
-
-Evaluate whether:
-- Integration is plausible and useful *in principle*
-- Target-domain elements are core rather than peripheral
-- The synthesis forms a coherent research direction rather than a loose pairing
-
-IGNORE:
 - Missing implementation details
 
-### 3. NOVELTY–RELEVANCE ALIGNMENT
-Assess whether the method’s takeaways are intellectually interesting and non-obvious
-while remaining substantively grounded.
-
-Primarily assess using:
-- **Source Domain**: Conceptual distance from the target domain
-- **Source Formulation**: Whether the insight offers a genuinely new perspective
-- **Mechanism**: Whether novelty is grounded in real, feasible conceptual alignment
-
-Evaluate whether:
-- The source domain is meaningfully distinct from the target domain
-- The insight would be surprising or thought-provoking to a target-domain expert
-- Novelty is earned through substance, not metaphor alone
-
-NOTE:
-Greater domain distance is ONLY positive if relevance and integration remain strong.
-
---------------------------------------------------
-QUALITY PATTERNS TO CONSIDER
-
+CONSIDER:
 - **Consistency**: Are the method’s takeaways consistently meaningful, or uneven?
 - **Groundedness**: Are claims supported by real conceptual alignment?
-- **Integration coherence**: Do the takeaways form a coherent integration story?
 - **Scope appropriateness**: Are takeaways neither trivial nor wildly speculative?
 
 --------------------------------------------------
@@ -177,22 +129,18 @@ Return a JSON object:
 
 {{
   "takeaway_comparison": {{
-    "rationale_alignment": {{
+    "interdisciplinary_insightfulness": {{
       "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
     }},
-    "integration_alignment": {{
-      "preferred_method": 1 | 2,
-      "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
-    }},
-    "novelty_alignment": {{
+    "interdisciplinary_relevance": {{
       "preferred_method": 1 | 2,
       "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
     }},
   }},
   "overall_assessment": {{
     "preferred_method": 1 | 2,
-    "summary": "2–3 sentences explaining which method’s takeaways are higher quality in terms of meaningfulness, usefulness, and intellectual interest"
+    "summary": "2–3 sentences explaining which method’s takeaways are higher quality in terms of interdisciplinary insightfulness and interdisciplinary relevance"
   }}
 }}
 """
@@ -204,9 +152,8 @@ class MetricComparison(BaseModel):
     reasoning: str
 
 class TakeawayComparison(BaseModel):
-    rationale_alignment: MetricComparison
-    integration_alignment: MetricComparison
-    novelty_alignment: MetricComparison
+    interdisciplinary_insightfulness: MetricComparison
+    interdisciplinary_relevance: MetricComparison
 
 class OverallAssessment(BaseModel):
     preferred_method: Literal[1, 2]
