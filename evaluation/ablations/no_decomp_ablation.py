@@ -179,7 +179,7 @@ def explore_external_domains(args, llm, research_problem):
         cross_domain_analysis_prompts,
         cross_domain_analysis_schema,
         temperature=args.temp,
-        max_tokens=8192
+        max_tokens=10240
     )
 
     return cross_domain_analysis_keys, cross_domain_analysis_outputs
