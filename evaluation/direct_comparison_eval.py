@@ -349,7 +349,7 @@ def parse_arguments():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="evaluation/comparison",
+        default="evaluation/direct_comparison",
         help="Path to output directory."
     )
     parser.add_argument(
