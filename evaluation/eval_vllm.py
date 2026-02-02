@@ -137,7 +137,7 @@ Return a JSON object:
     }},
     "interdisciplinary_relevance": {{
       "preferred_method": 1 | 2,
-      "reasoning": "1–2 sentences explaining your reasoning for the preferred method"
+      "reasoning": "1–2 sentences explaining your reasoning for the preferred method based on the evaluation criteria"
     }},
   }},
   "overall_assessment": {{
@@ -283,7 +283,7 @@ Which idea has greater interdisciplinary potential for addressing the research p
     - Present new approaches/solutions to the research problem in the target domain ({target_domain})
     - Address a gap/challenge for the research problem in the target domain ({target_domain})
     - The idea integrates the concepts from both the target domain and source domain into a well-formed idea that addresses the research problem
-  - The complexity, simplicity, or practicality of the proposed idea should not factor into your decision. Usefulness is defined based on the potential impact of the source domain being introduced to the target domain. Specifically, a more useful interdisciplinary idea integrates the source and target domains in a way that allows for a more significant problem/challenge to be solved or a significant gap in existing ideas to be addressed.
+  - The complexity, simplicity, or practicality of the proposed idea should not factor into your decision (e.g., a more "clear, immediately applicable"/"direct"/"concrete" solution does not make it more useful).Usefulness is defined based on the potential impact of the source domain being introduced to the target domain. Specifically, a more useful interdisciplinary idea integrates the source and target domains in a way that allows for a more significant problem/challenge to be solved or a significant gap in existing ideas to be addressed.
   - Keep in mind that if the distance between the source and target domain is larger (e.g., Computer Science & Engineering are closer than Computer Science & Philosophy), the idea may inherently be less practical. This does not mean that it is less useful. Focus on the degree of the potential impact instead.
 
 --------------------------------------------------
@@ -299,7 +299,7 @@ Return a JSON object:
     }},
     "interdisciplinary_usefulness": {{
       "preferred_method": 1 | 2,
-      "reasoning": "1–2 sentences explaining which idea is more useful for the research problem"
+      "reasoning": "1-2 sentences explaining why the preferred idea is more useful than the other idea for the research problem based on the evaluation criteria"
     }}
   }},
   "overall_assessment": {{
@@ -377,7 +377,7 @@ def main():
 
     # Initialize vLLM model
     print("Loading model...")
-    llm = LLM(model=args.model_name, tensor_parallel_size=8, max_model_len=16384, gpu_memory_utilization=0.8)
+    llm = LLM(model=args.model_name, tensor_parallel_size=8, max_model_len=16384, gpu_memory_utilization=0.8, max_num_seqs=400)
     print("Model loaded.\n")
 
     overall_takeaway_stats = {"baseline_one": {"wins": 0,
