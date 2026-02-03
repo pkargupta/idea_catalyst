@@ -350,6 +350,9 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
             highest_relevance = prop_relevant
             most_relevant_qd_pair = (question, domain, output)
         
+        if ("challenge_sufficiency_assessment" not in output) or ("is_challenege_addressed" not in output["challenge_sufficiency_assessment"]):
+            print(output)
+        
         if (output["challenge_sufficiency_assessment"]["is_challenge_addressed"] and 
             prop_relevant >= args.min_rel_threshold and
             output.get("solution_takeaways")):
