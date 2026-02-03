@@ -388,6 +388,9 @@ def main():
                                      "ties": 0},
                     "mainmethod": {"wins": 0,
                                    "losses": 0,
+                                   "ties": 0},
+                    "nodecomp": {"wins": 0,
+                                   "losses": 0,
                                    "ties": 0}
                     }
     
@@ -399,11 +402,15 @@ def main():
                                      "ties": 0},
                     "mainmethod": {"wins": 0,
                                    "losses": 0,
+                                   "ties": 0},
+                    "nodecomp": {"wins": 0,
+                                   "losses": 0,
                                    "ties": 0}
                     }
 
     # Iterate through each of the baselines and run the eval
-    for model_id in ["baseline_one", "baseline_two", "mainmethod"]:
+    # for model_id in ["baseline_one", "baseline_two", "mainmethod"]:
+    for model_id in ["nodecomp"]:
         print(f"Running evaluation for method: {model_id}...")
 
         # Setup output dir
