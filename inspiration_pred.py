@@ -415,6 +415,9 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
     for (question, domain), output in zip(cross_domain_analysis_keys, cross_domain_analysis_outputs):
         # Only process if challenge is addressed, the papers are sufficiently relevant, and there are takeaways
         # Calculate relevance metrics
+        if (type(output) != dict) or ("paper_relevance" not in output):
+            print("Output:\n", output)
+            continue
         relevant_papers = [
             paper["paper_title"] 
             for paper in output["paper_relevance"] 
@@ -429,8 +432,8 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
             highest_relevance = prop_relevant
             most_relevant_qd_pair = (question, domain, output)
         
-        if (output["challenge_sufficiency_assessment"]["is_challenge_addressed"] and 
-            prop_relevant >= args.min_rel_threshold and
+        # output["challenge_sufficiency_assessment"]["is_challenge_addressed"] and 
+        if (prop_relevant >= args.min_rel_threshold and
             output.get("solution_takeaways")):
             question_to_domains[question].append((domain, output))
     
@@ -445,6 +448,7 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
             return {}
     
     # Generate integration prompts for each question-domain pair
+    qd2takeaways = {}
     for question, domain_outputs in question_to_domains.items():
         # Get parent question's target domain papers
         if question.parent_question:
@@ -494,6 +498,7 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
             messages = [{"role": "user", "content": prompt}]
             integration_prompts.append(messages)
             integration_keys.append((question, domain))
+            qd2takeaways[(question, domain)] = {i["takeaway_id"]: i for i in output["solution_takeaways"]}
             
             print(f"  Prepared integration for {question.id} + {domain.domain_name}")
     
@@ -516,9 +521,15 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
         if output is None:
             print(f"  Failed to generate integration for {question.id} + {domain.domain_name}")
             continue
-        
-        question.add_integrated_idea(domain.domain_name, output["idea_fragment"])
-        integrated_ideas[(question, domain)] = output["idea_fragment"]
+
+        idea = output["idea_fragment"]
+        for selected_takeaway in idea["integration_mechanism"]["selected_takeaways"]:
+            takeaway_id = selected_takeaway["takeaway_id"]
+            selected_takeaway["source_domain_formulation"] = qd2takeaways[((question, domain))][takeaway_id]["source_domain_formulation"]
+            selected_takeaway["mechanism_explanation"] = qd2takeaways[((question, domain))][takeaway_id]["mechanism_explanation"]
+
+        question.add_integrated_idea(domain.domain_name, idea)
+        integrated_ideas[(question, domain)] = idea
         print(f"  Generated: {output['idea_fragment'].get('title', 'Untitled')}")
     
     return integrated_ideas

@@ -397,24 +397,24 @@ Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geol
 # YOUR TASK
 
 Using the **domain-agnostic version of the question**, identify **1–3 external domains**
-(from the list above, excluding {target_domain}) that are likely to contain relevant insights for directly addressing the challenges that {target_domain.upper()} research has in addressing the research question..
+(from the list above, excluding {target_domain}) that are likely to contain relevant insights for directly thinking about and/or addressing the challenges that {target_domain.upper()} research has in addressing the research question..
 
 These domains should have studied:
-- analogous mechanisms to solve the challenges,
+- analogous concepts/ideas to solve the challenges,
 - structurally similar problems,
 - or transferable principles
 
 even if the surface application differs from {fine_grained_domain}.
 
 For EACH selected domain:
-- Explain *why* this domain is a good match for addressing the challenges in solving the domain-agnostic question
+- Explain *why* this domain is a good match for thinking about and addressing the challenges in solving the domain-agnostic question
 - Provide **2–4 search queries** suitable for that domain
 
 # QUERY DESIGN PRINCIPLES
 
 Each query must be:
 - **Domain-appropriate**: use terminology natural to the selected external field
-- **Mechanistic**: targets underlying processes, constraints, or principles
+- **Mechanistic**: targets analogous concepts or principles
 - **Concise**: maximum 5 words
 - **Specific**: likely to appear in paper titles or abstracts
 - **Non-redundant**: queries should reflect different angles within the same domain
@@ -531,7 +531,7 @@ def create_cross_domain_analysis_prompt(
     
     papers_text = "\n".join(papers_formatted) if papers_formatted else "No papers retrieved."
     
-    prompt = f"""You are an expert at identifying cross-disciplinary solutions to research challenges. Your goal is to analyze papers from an external domain to determine if they solve a specific challenge and extract actionable solution approaches.
+    prompt = f"""You are an expert at identifying cross-disciplinary conceptual insights that inform research challenges. Your goal is to analyze papers from an external domain to determine whether they provide meaningful conceptual understanding of a specific challenge and extract transferable interpretive insights.
 
 # RESEARCH PROBLEM
 {problem_statement}
@@ -540,12 +540,12 @@ def create_cross_domain_analysis_prompt(
 - **Broad Domain**: {target_domain}
 - **Specific Subfield**: {fine_grained_domain}
 
-# THE CHALLENGE TO SOLVE
+# THE CHALLENGE TO UNDERSTAND
 
 **Conceptual Challenge Formulation**:
 {domain_agnostic_question}
 
-**What makes this challenging? What is the bottleneck to solving it**:
+**What makes this challenging? What is the bottleneck to understanding or solving it**:
 {question_challenge}
 
 # SOURCE DOMAIN TO ANALYZE
@@ -557,18 +557,20 @@ def create_cross_domain_analysis_prompt(
 # YOUR TASK
 
 ## 1. Assess Paper Relevance
-For each paper, determine if it **attempts to solve** the conceptual challenge (not just tangentially related).
+For each paper, determine if it **meaningfully contributes conceptual insight toward understanding the challenge** (not just tangentially related). Papers may be relevant even if they do not propose explicit solutions, as long as they offer theoretical perspectives, explanatory frameworks, or empirically grounded conceptual models that clarify the challenge.
 
-## 2. Extract Solution Takeaways
-For papers that address the challenge, identify how they solve it. Each takeaway should:
-- Capture a **concrete solution approach or mechanism**
+## 2. Extract Conceptual Takeaways
+For papers that provide insight into the challenge, identify the **core conceptual perspectives, principles, or explanatory constructs** they contribute. Each takeaway should:
+
+- Capture a **conceptual insight, interpretive framework, or explanatory mechanism**
 - Be presented in the following **formulation**:
-  - **{source_domain}-specific**: Using natural {source_domain} terminology and concepts. Be detailed in your explanation.
+  - **{source_domain}-specific**: Using natural {source_domain} terminology, constructs, and theoretical framing. Be detailed and faithful to the source domain's conceptual worldview.
 - Be **evidence-based**: Clearly grounded in the provided papers
-- Focus on **how the solution works**, not just what it achieves
+- Emphasize **how the source domain conceptualizes or interprets the challenge**, rather than prescribing implementation strategies or engineering solutions
+- Highlight underlying assumptions, abstractions, or theoretical lenses that shape how the challenge is approached
 
-## 3. Synthesize Overall Assessment
-Based on all takeaways, judge whether the conceptual challenge is sufficiently addressed by this source domain.
+## 3. Synthesize Overall Conceptual Assessment
+Based on all takeaways, evaluate how extensively the source domain provides **useful conceptual grounding or interpretive insight** into the challenge, regardless of whether it provides direct operational solutions.
 
 # OUTPUT FORMAT
 
@@ -584,36 +586,36 @@ Return a JSON object:
         {{
             "paper_title": "Exact title from above",
             "directly_addresses_challenge": true,
-            "relevance_explanation": "Explain how this paper does/doesn't directly attempt to solve the challenge"
+            "relevance_explanation": "Explain how this paper does/doesn't contribute conceptual insight into the challenge"
         }}
     ],
     
     "solution_takeaways": [
         {{
             "takeaway_id": "t1",
-            "source_domain_formulation": "Description of the solution using {source_domain} terminology and concepts",
-            "mechanism_explanation": "How this solution approach works and why it addresses the challenge. If applicable, provide examples to make it intuitive.",
+            "source_domain_formulation": "Description of the conceptual insight using {source_domain} terminology and concepts",
+            "mechanism_explanation": "Explain the underlying conceptual logic, perspective, or explanatory model and how it helps interpret or frame the challenge. If applicable, provide examples to make it intuitive.",
             "supporting_papers": ["Paper Title 1", "Paper Title 2"]
         }}
     ],
     
     "challenge_sufficiency_assessment": {{
         "is_challenge_addressed": true,
-        "assessment_explanation": "Explain whether the conceptual crux of the challenge is sufficiently solved by the source domain's approaches",
-        "key_solutions_summary": "Brief summary of the main solution approaches found",
-        "remaining_gaps": "What aspects of the challenge remain unaddressed (if any)"
+        "assessment_explanation": "Explain whether the source domain provides sufficiently rich conceptual insight into the challenge, even if it does not provide direct solution methods",
+        "key_solutions_summary": "Brief summary of the main conceptual perspectives or interpretive frameworks identified",
+        "remaining_gaps": "What aspects of conceptual understanding remain unclear, underspecified, or unexplored (if any)"
     }}
 }}
 
 # GUIDELINES
 
-- **Direct relevance only**: Only mark papers as relevant if they actively try to solve the challenge, not just mention related concepts
-- **Conservative assessment**: Only include takeaways you're confident are well-supported by evidence
-- **Dual formulations are critical**: Each takeaway must have both source-domain and target-domain versions
-  - Source-domain version should use natural terminology from that field
-- **Focus on mechanisms**: Explain *how* solutions work, not just *what* they achieve
-- **Challenge sufficiency**: Judge based on whether the core problem is solved, not whether implementation details are provided
-- **Honest assessment**: If the source domain doesn't adequately address the challenge, say so
+- **Conceptual relevance only**: Mark papers as relevant if they deepen theoretical, explanatory, or interpretive understanding of the challenge
+- **Insight-focused takeaways**: Prioritize perspectives, principles, and conceptual models over step-by-step solution procedures
+- **Source-domain fidelity**: Each takeaway should faithfully reflect how the source domain naturally frames and reasons about the phenomenon
+- **Evidence grounding**: Only include takeaways that are clearly supported by paper content
+- **Mechanistic conceptual explanation**: Describe the explanatory logic or reasoning structure behind the conceptual insight
+- **Challenge sufficiency**: Judge whether the source domain provides strong conceptual grounding, not whether it supplies deployable implementations
+- **Honest assessment**: Explicitly identify when the source domain offers limited or partial conceptual coverage
 
 # EXAMPLE
 
@@ -624,18 +626,18 @@ Fine-Grained Domain: "Reinforcement Learning"
 Good takeaway:
 {{
     "takeaway_id": "t1",
-    "source_domain_formulation": "Animals maintain decaying memory traces of conditioned stimuli that persist after stimulus offset. When an unconditioned stimulus (reward) arrives later, learning occurs proportionally to the remaining trace strength, enabling associations across temporal gaps.",
-    "mechanism_explanation": "By preserving a gradually fading representation of past events, the system maintains a 'bridge' that connects earlier decisions to later outcomes. The decay rate controls how far back credit propagates, balancing recency bias with long-term dependencies.",
+    "source_domain_formulation": "Learning systems maintain temporally extended internal representations of prior stimuli, often modeled as trace-based memory constructs that decay gradually following stimulus offset. These traces allow organisms to preserve causal relevance across temporal gaps.",
+    "mechanism_explanation": "The conceptual insight is that attribution across time depends on maintaining persistent internal representations that preserve causal continuity between past and present events. The decay dynamics of these representations shape how strongly earlier experiences influence later learning, reflecting a tradeoff between temporal precision and stability.",
     "supporting_papers": ["Temporal Conditioning in Animal Learning", "Trace Decay Mechanisms in Associative Learning"]
 }}
 
-Bad takeaway (too vague and unrelated to challenge):
-- "Systems should learn from past experiences" → Doesn't explain delayed attribution
+Bad takeaway (overly procedural):
+- "Use eligibility traces to propagate reward signals"
 
-Bad takeaway (too shallow):
-- "Use memory to connect past and present" → Needs to explain *how* memory is structured and used
+Bad takeaway (too vague):
+- "Memory helps learning over time"
 
-Now analyze whether {source_domain} papers solve the challenge.
+Now analyze whether {source_domain} papers provide conceptual insight into the challenge.
 """
     
     return prompt

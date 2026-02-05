@@ -1,7 +1,8 @@
-from vllm import SamplingParams
+from vllm import SamplingParams, LLM
 from vllm.sampling_params import StructuredOutputsParams
 import json_repair
 from typing import List, Dict
+from tqdm import tqdm
 from classes import Question, Domain
 from search import search_semantic_scholar, collect_snippets
 
@@ -183,7 +184,7 @@ def convert_domain(input_name):
         return input_name
 
 
-def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7, max_tokens: int = 2048) -> List[dict]:
+def batch_llm_inference(llm , messages_list: List[List[Dict]], schema: dict, temperature: float = 0.7, max_tokens: int = 2048) -> List[dict]:
     """
     Perform batch inference with structured output.
     
@@ -196,20 +197,45 @@ def batch_llm_inference(llm, messages_list: List[List[Dict]], schema: dict, temp
     Returns:
         List of parsed JSON responses
     """
-    sampling_params = SamplingParams(
-        max_tokens=max_tokens,
-        temperature=temperature,
-        top_p=0.95,
-        structured_outputs=StructuredOutputsParams(json=schema),
-    )
-    
-    responses = llm.chat(messages_list, sampling_params, chat_template_kwargs={"include_reasoning": False})
+    if type(llm) == LLM:
+        sampling_params = SamplingParams(
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=0.95,
+            structured_outputs=StructuredOutputsParams(json=schema),
+        )
+        
+        responses = [r.outputs[0].text for r in llm.chat(messages_list, sampling_params, chat_template_kwargs={"include_reasoning": False})]
+    else:
+        responses = []
+        for messages in tqdm(messages_list):
+            if ("CrossDomainAnalysis" in str(schema)) or ("IdeaFragment" in str(schema)):
+                messages.insert(0, {"role": "system", "content": "You are collaborating with a human researcher to help spark creativity in their research ideation/brainstorming process. You are giving them inspiration from other domains on how to tackle their research problem. Ensure that you are not overly verbose and that your wording is easy to understand for all (junior and senior) researchers within Computer Science."})
+            attempts = 0
+            response_output = None
+            while (response_output is None) or (len(response_output) == 0) or (attempts > 3):
+                attempts += 1
+                response = llm.chat.completions.create(
+                        messages=messages,
+                        max_completion_tokens=max_tokens,
+                        model="gpt-5-mini",
+                        reasoning_effort="none",
+                        response_format={
+                            'type': 'json_schema',
+                            'json_schema': {'name':'output_schema', 'schema': {**schema}}
+                        }
+                        #response_format={ "type": "json_schema", "json_schema": schema}
+                    )
+                response_output = response.choices[0].message.content
+            
+            responses.append(response_output)
+
     
     # Parse all responses
     parsed_responses = []
     for response in responses:
         try:
-            parsed = json_repair.loads(response.outputs[0].text)
+            parsed = json_repair.loads(response)
             parsed_responses.append(parsed)
         except Exception as e:
             print(f"Error parsing response: {e}")
