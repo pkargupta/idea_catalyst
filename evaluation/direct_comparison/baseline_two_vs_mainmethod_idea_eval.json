@@ -13311,12 +13311,7 @@
       "summary": "While Method\u202f2 is more novel in its interdisciplinary blend, Method\u202f1 provides a more immediately useful and focused approach to the stated problem. Consequently, Method\u202f1 is judged overall superior for integrating psychology insights to improve task\u2011model encoders under spatio\u2011temporal noise."
     }
   },
-  "('14478_430_non-rigid_surface_registration', 0)": [
-    {
-      "preferred_method": 1,
-      "summary": "..."
-    },
-    {
+  "('14478_430_non-rigid_surface_registration', 0)": {
       "idea_comparison": {
         "interdisciplinary_novelty": {
           "preferred_method": 2,
@@ -13331,8 +13326,7 @@
         "preferred_method": 1,
         "summary": "While the geological approach is more novel, the medical\u2011imaging based method provides greater practical utility and a smoother integration of source\u2011domain insights into computer\u2011science registration pipelines, making it the overall stronger interdisciplinary solution."
       }
-    }
-  ],
+    },
   "('7745_20950_the_$n_>_5$-point_problem', 0)": {
     "idea_comparison": {
       "interdisciplinary_novelty": {

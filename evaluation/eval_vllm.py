@@ -340,8 +340,8 @@ def parse_arguments():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="Qwen/Qwen3-14B",
-        #default="openai/gpt-oss-120b",
+        #default="Qwen/Qwen3-14B",
+        default="openai/gpt-oss-120b",
         help="LLM model name or path."
     )
     parser.add_argument(
@@ -391,6 +391,9 @@ def main():
                                    "ties": 0},
                     "nodecomp": {"wins": 0,
                                    "losses": 0,
+                                   "ties": 0},
+                    "summary": {"wins": 0,
+                                   "losses": 0,
                                    "ties": 0}
                     }
     
@@ -405,12 +408,15 @@ def main():
                                    "ties": 0},
                     "nodecomp": {"wins": 0,
                                    "losses": 0,
+                                   "ties": 0},
+                    "summary": {"wins": 0,
+                                   "losses": 0,
                                    "ties": 0}
                     }
 
     # Iterate through each of the baselines and run the eval
     # for model_id in ["baseline_one", "baseline_two", "mainmethod"]:
-    for model_id in ["nodecomp"]:
+    for model_id in ["summary"]:
         print(f"Running evaluation for method: {model_id}...")
 
         # Setup output dir
