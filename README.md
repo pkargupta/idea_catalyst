@@ -41,17 +41,23 @@ Each output file contains:
 - Cross-domain evidence grouped by question/domain
 - `idea_rankings` (ranked integrated ideas)
 
+### 5) Prepare evaluation inputs from ground-truth abstracts
+If you want to convert ground-truth arXiv abstracts into this repo's evaluation format, use:
+```bash
+python evaluation/process_abstracts.py
+```
+
 ## Data Format: `data/cross-domain-inspiration-relations.json`
 
-This file is a JSON array. Each entry is one cross-domain inspiration relation used as an input problem. The dataset is derived from: [text](https://huggingface.co/datasets/noystl/Recombination-Pred)
+This file is a JSON array. Each entry is one cross-domain inspiration relation used as an input problem. The dataset is derived from: [CHIMERA](https://huggingface.co/datasets/noystl/Recombination-Pred)
 
 Core fields used by `inspiration_pred.py`:
 - `source_id` (int): source paper identifier
 - `target_id` (int): target paper identifier
 - `source_domain` (str): source domain (used as target/focus domain in this pipeline)
 - `target_domain` (str): referenced inspired domain
-- `source_text` (str): source-side task/idea text
-- `target_text` (str): target-side inspiration text
+- `source_text` (str): source-side idea phrase
+- `target_text` (str): target-side inspiration phrase
 - `context` (str): problem statement passed to decomposition
 - `publication_year` (int): used to bound literature search
 - `abstract` (str): stored as ground truth metadata
@@ -86,6 +92,3 @@ Minimal schema:
 
 ### Pipeline Overview
 ![Pipeline Overview](figures/framework_diagram.png)
-
-### Header Figure
-`figures/readme_image.png` is used at the top of this README as the project header image.
