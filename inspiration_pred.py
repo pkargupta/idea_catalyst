@@ -525,6 +525,9 @@ def integrate_cross_domain_insights(args, llm, research_problem, cross_domain_an
         idea = output["idea_fragment"]
         for selected_takeaway in idea["integration_mechanism"]["selected_takeaways"]:
             takeaway_id = selected_takeaway["takeaway_id"]
+            if takeaway_id not in qd2takeaways[((question, domain))]:
+                print(takeaway_id, "missing!")
+                continue
             selected_takeaway["source_domain_formulation"] = qd2takeaways[((question, domain))][takeaway_id]["source_domain_formulation"]
             selected_takeaway["mechanism_explanation"] = qd2takeaways[((question, domain))][takeaway_id]["mechanism_explanation"]
 
