@@ -1,6 +1,8 @@
 ![Creative Research Pipeline](figures/readme_image.png)
 
-This repository runs an interdisciplinary research pipeline that:
+![Pipeline Overview](figures/framework_diagram.png)
+
+Identify insights from other domains that help address challenges or open up novel opportunities for your research problem:
 1. Decomposes a research problem into questions.
 2. Searches target-domain literature.
 3. Searches cross-domain literature for transferable ideas.
@@ -87,8 +89,3 @@ Minimal schema:
   }
 ]
 ```
-
-## Figures
-
-### Pipeline Overview
-![Pipeline Overview](figures/framework_diagram.png)
