@@ -1,0 +1,12 @@
+adapters
+numpy
+pandas
+pydantic
+scikit_learn
+setuptools
+spacy
+torch
+tqdm
+transformers
+typing_extensions
+vllm

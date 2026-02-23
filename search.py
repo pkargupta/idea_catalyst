@@ -1,7 +1,7 @@
 import requests
 from collections import defaultdict
 import time
-from config import API_KEY, BASELINE_API_KEY
+from config import API_KEY
 
 def search_semantic_scholar(query, coarse_domain, limit=5, year=None, baseline=False):
     url = "http://api.semanticscholar.org/graph/v1/snippet/search"
@@ -21,7 +21,7 @@ def search_semantic_scholar(query, coarse_domain, limit=5, year=None, baseline=F
         query_params["year"] = f"-{year-1}"
 
     if baseline:
-        headers = {"x-api-key": BASELINE_API_KEY}
+        headers = {"x-api-key": API_KEY}
     else:
         headers = {"x-api-key": API_KEY}
     
