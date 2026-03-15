@@ -1,4 +1,16 @@
-![Creative Research Pipeline](figures/readme_image.png)
+<div align="center">
+
+<p align="center"><img src="figures/readme_image.png" alt="Idea-Catalyst"/></p>
+
+[![Static Badge](https://img.shields.io/badge/Paper-white?style=for-the-badge&logo=arxiv&logoColor=%23e46e2f&color=%232e4969)](https://arxiv.org/abs/2603.12226)
+[![Static Badge](https://img.shields.io/badge/Blog-white?style=for-the-badge&logo=notion&logoColor=%23e46e2f&color=%232e4969)](https://pkargupta.github.io/idea_catalyst.html)
+[![Static Badge](https://img.shields.io/badge/Dataset-white?style=for-the-badge&logo=huggingface&logoColor=%23e46e2f&color=%232e4969)](https://huggingface.co/datasets/pkargupta/idea_catalyst)
+
+[Priyanka Kargupta](https://pkargupta.github.io/), [Shuhaib Mehri](https://shuhaibm.github.io/), [Dilek Hakkani-Tur](https://siebelschool.illinois.edu/about/people/faculty/dilek), [Jiawei Han](https://hanj.cs.illinois.edu/)
+
+</div>
+
+# Sparking Scientific Creativity via LLM-Driven Interdisciplinary Inspiration
 
 ![Pipeline Overview](figures/framework_diagram.png)
 
